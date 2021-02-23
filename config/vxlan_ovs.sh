@@ -1,13 +1,17 @@
 #!/bin/bash
 set -x #echo on
+SETHOST=${1:-both}
 
-VXLAN_IF_NAME=vxlan_sys_4789
+if [[ "$SETHOST" == "local" || "$SETHOST" == "both" ]]; then
+
+
+VXLAN_IF_NAME=vxlan_sys_4790
 PF0=enp24s0f0
 VF0_REP=enp24s0f0_0
 VF0=enp24s0f2
 OUTER_REMOTE_IP=192.168.1.65
 OUTER_LOCAL_IP=192.168.1.62
-REMOTE_SERVER="${1:-10.15.4.139}"
+REMOTE_SERVER="${1:-10.15.4.240}"
 
 #configuring PF and PF representor
 ifconfig $PF0 $OUTER_LOCAL_IP/24 up
@@ -16,7 +20,7 @@ ifconfig $PF0 up
 #ifconfig $VF0 $INNER_LOCAL_IP/24 up
 ifconfig $VF0_REP up
 ifconfig $VF0 2.2.2.3/24 up
-ip link del vxlan_sys_4790
+ip link del ${VXLAN_IF_NAME}
 #ip link add vxlan_sys_4789 type vxlan id 100 dev ens1f0 dstport 4789
 
 # adding hw-tc-offload on
@@ -36,6 +40,10 @@ ovs-vsctl set Open_vSwitch . other_config:hw-offload=true
 service openvswitch restart
 ifconfig ovs-br up
 ovs-vsctl show
+fi
+
+if [[ "$SETHOST" == "remote" || "$SETHOST" == "both" ]]; then
+
 OUTER_REMOTE_IP=192.168.1.62
 OUTER_LOCAL_IP=192.168.1.65
 PF0=p0
@@ -47,7 +55,7 @@ ssh $REMOTE_SERVER /bin/bash << EOF
 	ifconfig $PF0 up
 	ifconfig $VF0_REP up
 
-	ip link del vxlan_sys_4790
+	ip link del ${VXLAN_IF_NAME}
 
 	# adding hw-tc-offload on
 	echo update hw-tc-offload to $PF0 and $VF0_REP
@@ -66,3 +74,5 @@ ssh $REMOTE_SERVER /bin/bash << EOF
 	ifconfig ovs-br up
 	ovs-vsctl show
 EOF
+fi
+

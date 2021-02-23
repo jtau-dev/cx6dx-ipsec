@@ -1,15 +1,14 @@
 #!/usr/bin/bash
-# setup_hostvfs.sh [#N of VFs to use] [local/remost/both]
+# setup_hostvfs.sh [MTU] [local/remost/both]
 # Sets N VFs on one, two, or both serves.
-service NetworkManager stop
 
 source ../common_config.sh
 set -x
 
-MYVFS=${1:-${VFS}}
+MYMTU=${1:-${MTU}}
 MYSETHOST=${2:-both}
 
-if [[ $MYVFS =~ [\^0-9+$] && ! $MYVFS =~ [A-Za-z] ]]; then
+if [[ $MYMTU =~ [\^0-9+$] && ! $MYVFS =~ [A-Za-z] ]]; then
     VFS=$MYVFS
     SETHOST=$MYSETHOST
 else 

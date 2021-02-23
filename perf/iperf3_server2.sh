@@ -1,20 +1,42 @@
 #!/usr/bin/bash
-LIF=enp175s0f0
-LPPFX=enp
+source ../config.dat
 
-NoT=${1:-1}
-IPs=($LIF `ibdev2netdev -v | sort -t : -k3,3 | awk '{print $12}' | grep $LPPFX`)
-# BF2 NUMA cores.  Change the following to the BF2's NUMA cores.
-res=($(seq 12 23) $(seq 36 47) $(seq 0 11) $(seq 24 35))
+NoT=${1:-$VFS}
 
+
+set -x 
+NUMA=`cat /sys/class/infiniband/$RMLXID/device/numa_node`
+NUMA_CORES=`lscpu | grep "NUMA node$NUMA" | awk '{print $4}'`
+NUMA_CORES=${NUMA_CORES//,/ }
+
+for c in ${NUMA_CORES[@]}; do
+  if [[ $c =~ [-] ]]; then
+    C=${c/-/ }
+    cores=( ${cores[@]} $(seq $C) )
+  fi
+done
+#echo "${cores[@]}"
+
+RIFN=`ls /sys/class/infiniband/$RMLXID/device/net/`;
+RIFN=${RIFN//};
+
+VFN=(dummy $RIFN `ls /sys/class/infiniband/$RMLXID/device/virtfn*/net/`);
+echo "VFN=${VFN[@]}"
+for i in $( seq 1 2 ${#VFN[@]} ); do 
+  IP=`ip addr show ${VFN[$i]} | grep -E 'inet.*global' | awk '{print $2}'`
+  IP=${IP///24/}
+  IPs=(${IPs[@]} $IP)
+done
+
+echo ${IPs[@]}
 for i in $( seq 0 $(( NoT - 1)) )
 do
-    IPADDR=`ip addr show ${IPs[$i]} | grep global | awk '{print $2}'`
-    IPADDR=${IPADDR//\/24/}
-    coren=${res[$i]}
-    cmd="taskset -c $coren iperf3 -s -B $IPADDR&"
-    echo $cmd
-    eval $cmd
-    
-done
+  coren=${cores[$i]}
+  cmd="taskset -c $coren iperf3 -s -B ${IPs[$i]}&"
+  echo $cmd
+  eval $cmd
+ done
 wait
+
+
+

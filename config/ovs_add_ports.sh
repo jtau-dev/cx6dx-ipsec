@@ -1,31 +1,32 @@
 #!/usr/bin/bash
 
-N=${1:-1}
-BR='ovs-br'
-REMOTE_SERVER="10.7.159.36 -p 2222"
-S=($(seq 0 $(( N - 1 ))))
+source ../common_config.sh
 
-echo "Bridging local SNIC VF repreentors ..."
-for i in ${S[@]} 
-do
-  cmd="ovs-vsctl add-port $BR pf0vf${i}"
-  echo $cmd
-  eval $cmd
-  ifconfig pf0vf${i} up
-done
+MYVFS=${1:-${VFS}}
+SETHOST=${2:-both}
 
-echo "Bridging remote SNIC VF representors ..."
-ssh -x $REMOTE_SERVER /bin/bash << EOF
-#!/usr/bash
+if [[ $MYVFS =~ [\^0-9+$] && ! $MYVFS =~ [A-Za-z] ]]; then
+    VFS=$MYVFS
+elif [[ "$MYVFS" == "local" || "$MYVFS" == "remote" || \
+        "$MYVFS" == "both" ]]; then
+    SETHOST=$MYVFS
+fi
 
-for i in ${S[@]}
-do
-  cmd="ovs-vsctl add-port $BR pf0vf\${i}"
-  echo \$cmd 
-  eval \$cmd
-  ifconfig pf0vf\${i} up
-done
+case "$SETHOST" in
+    "local"|"remote"|"both")
+	;;
+    *)
+	SETHOST="both"
+	;;
+esac     
 
-EOF
+if [[ "$SETHOST" == "local" || "$SETHOST" == "both" ]]; then
+  echo "Bridging local SNIC VF repreentors ..."
+  add_ovs_vxlan_ports $LHOST $LMLXID
+fi
 
+if [[ "$SETHOST" == "remote" || "$SETHOST" == "both" ]]; then
+  echo "Bridging remote SNIC VF representors ..."
+  add_ovs_vxlan_ports $RHOST $RMLXID
+fi
 

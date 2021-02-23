@@ -1,19 +1,18 @@
 #!/usr/bin/bash
-# setup_hostvfs.sh [#N of VFs to use] [local/remost/both]
+# setup_hostvfs.sh [MTU] [local/remost/both]
 # Sets N VFs on one, two, or both serves.
-service NetworkManager stop
 
 source ../common_config.sh
 set -x
 
-MYVFS=${1:-${VFS}}
+MYMTU=${1:-${MTU}}
 MYSETHOST=${2:-both}
 
-if [[ $MYVFS =~ [\^0-9+$] && ! $MYVFS =~ [A-Za-z] ]]; then
-    VFS=$MYVFS
-    SETHOST=$MYSETHOST
-else 
-    SETHOST=$MYVFS
+if [[ $MYMTU =~ [\^0-9+$] && ! $MYMTU =~ [A-Za-z] ]]; then
+    MTU=$MYMTU
+elif [[ "$MYMTU" == "local" || "$MYMTU" == "remote" || \
+        "$MYMTU" == "both" ]]; then
+    SETHOST=$MYMTU
 fi
 
 case "$SETHOST" in
@@ -23,15 +22,16 @@ case "$SETHOST" in
 	SETHOST="both"
 	;;
 esac     
+
 #echo $VFS
 #echo $SETHOST
 
 if [[ "$SETHOST" == "local" || "$SETHOST" == "both" ]]; then
-    set_host_vfs $LHOST $LMLXID
+    set_host_vf_mtu $LHOST $LMLXID
 fi
 
 if [[ "$SETHOST" == "remote" || "$SETHOST" == "both" ]]; then
-    set_host_vfs $RHOST $RMLXID
+    set_host_vf_mtu $RHOST $RMLXID
 fi
 
 

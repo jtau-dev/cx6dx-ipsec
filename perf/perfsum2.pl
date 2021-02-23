@@ -12,7 +12,9 @@
 use IO::Handle;
 use Getopt::Std;
 use Getopt::Long;
-
+use Time::HiRes qw( usleep ualarm gettimeofday tv_interval nanosleep
+                    clock_gettime clock_getres clock_nanosleep clock
+                    stat );
 #getopt("n:");
 $FS=0;
 GetOptions( "no-offload" => \$no-offload,
@@ -23,7 +25,7 @@ my $N = ($opt_n =~ /\d+/) ? $opt_n : 1;
 my @FILES=();
 $|=1;
 
-$FIFODIR="/root/ipsec/fifos/";
+$FIFODIR="/local/sandbox/ipsec/fifos/";
 
 @fh=();
 # Open named pipes into which iperf3 output is directed.
@@ -43,7 +45,6 @@ for ($i=0;$i<$N;$i++) {
 $low=5000;
 $hi=0;
 $sum=0;
-
 while ($sum==0){
     for ($i=0;$i<$N;$i++) {
 	$S= readline $fh[$i];
@@ -86,21 +87,26 @@ while (1) {
     $S_p=$Sk;
     $var=$Sk/($n-1);
 #    print "total= $total sum=$sum\n";
+    if ($sum < $low && $sum > 0) {
+	$low = $sum;
+    } elsif ($sum > $hi) {
+	$hi = $sum;
+    } elsif ($sum == 0) {
+	$zero_count++;
+	usleep (100000);
+	goto end;
+    }
+    $zero_count=0;
     $total+=$sum;
     $avg=$total/$n;
     $n++;
-    if ($sum < $low && $sum > 0) {
-	$low = $sum;
-    } 
-    if ($sum > $hi) {
-	$hi = $sum;
-    }
     $cpuu = get_CPU_util("iperf3");
     printf ("Inst: %4.1F $UNIT, Avg: %4.1f $UNIT, Var: %4.1f, low: %4.1f $UNIT, high: %4.1f $UNIT, CPU:% 3.1f\n",$sum,$avg,$var,$low,$hi,$cpuu);
+end: 	
     if (($sum > $MAXTHRPT) && (! $no-offload)) {
 	map {print $_ . " "} @tmparray;
 	print "\n";
-    } elsif (($sum == 0) && ($zero_cnt == 10)) {
+    } elsif (($sum == 0) && ($zero_cnt > 10)) {
 	print "iperf3 appears to have stopped, exiting.\n";
     }
 }

@@ -1,7 +1,8 @@
 #!/usr/bin/bash
 
+source ../common_config
 
-FIFO_DIR="/root/ipsec/fifos/"
+
 NoF=${1:-1}
 
 if [ ! -d $FIFO_DIR ]; then
