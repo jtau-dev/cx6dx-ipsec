@@ -1,0 +1,40 @@
+# Host IPs
+# Local/Remote host IP, MLX ID, VF0 IP, number of VFs.
+# Group MTU
+#
+LHOST=10.15.4.92
+RHOST=10.15.4.93
+LMLXID=mlx5_0
+RMLXID=mlx5_0
+LVFIP0=2.2.0.1
+RVFIP0=2.2.0.2
+VFS=5
+MTU=1400
+
+# Controller IPs
+# Local/Remote controller IP, MLX ID.
+# OVS bridge name
+#
+LCTRLR=10.15.4.92
+RCTRLR=10.15.4.139
+LCMLXID=mlx5_0
+RCMLXID=mlx5_0
+OVSBR=ovs-br
+
+#VXLAN
+# Local/Remote Gateway IP.
+# VXLAN port, ID, key, name.
+#
+GW_LIP=192.168.1.62
+GW_RIP=192.168.1.65
+VXLAN_PORT=4790
+VXLAN_ID=13
+VXLAN_KEY=101
+VXLAN_IF_NAME=vxlan_sys_${VXLAN_PORT}
+
+# Performance
+# named pipe directory to use, where to store and look
+# for all the named pipes for real-time performance data.
+# 
+FIFO_DIR=/local/sandbox/ipsec/fifos/
+RUNTIME=79200
