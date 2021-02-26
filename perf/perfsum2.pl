@@ -25,7 +25,9 @@ my $N = ($opt_n =~ /\d+/) ? $opt_n : 1;
 my @FILES=();
 $|=1;
 
-$FIFODIR="/local/sandbox/ipsec/fifos/";
+$FIFODIR=`cat config.dat | grep FIFO_DIR`;
+$FIFODIR=~s/FIFO_DIR=//;
+chomp($FIFODIR);
 
 @fh=();
 # Open named pipes into which iperf3 output is directed.

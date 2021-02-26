@@ -2,9 +2,9 @@
 source ../config.dat
 
 NoT=${1:-$VFS}
+CO=${2:-0} # core offset
 
-
-set -x 
+# set -x 
 NUMA=`cat /sys/class/infiniband/$RMLXID/device/numa_node`
 NUMA_CORES=`lscpu | grep "NUMA node$NUMA" | awk '{print $4}'`
 NUMA_CORES=${NUMA_CORES//,/ }
@@ -31,7 +31,7 @@ done
 echo ${IPs[@]}
 for i in $( seq 0 $(( NoT - 1)) )
 do
-  coren=${cores[$i]}
+  coren=$(( cores[$i] + NoT + $CO ))
   cmd="taskset -c $coren iperf3 -s -B ${IPs[$i]}&"
   echo $cmd
   eval $cmd

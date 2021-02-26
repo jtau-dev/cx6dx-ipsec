@@ -1,7 +1,6 @@
 #!/usr/bin/bash
 # setup_hostvfs.sh [#N of VFs to use] [local/remost/both]
 # Sets N VFs on one, two, or both serves.
-service NetworkManager stop
 
 source ../common_config.sh
 set -x
@@ -23,8 +22,8 @@ case "$SETHOST" in
 	SETHOST="both"
 	;;
 esac     
-#echo $VFS
-#echo $SETHOST
+echo $VFS
+echo $SETHOST
 
 if [[ "$SETHOST" == "local" || "$SETHOST" == "both" ]]; then
     set_host_vfs $LHOST $LMLXID

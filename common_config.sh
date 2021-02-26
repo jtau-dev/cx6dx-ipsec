@@ -5,7 +5,7 @@ function setdevlink() {
 # setdevlink [mlx_id] [controller IP]    
   CMLXID=$1
   CTRLR=$2
-  ssh -x $LCTRLR /bin/bash <<EOF
+  ssh -x $CTRLR /bin/bash <<EOF
      set -x #echo on
 
      ip x s f
@@ -31,10 +31,11 @@ function set_host_vfs() {
   MLXID=$2
   
   ssh -x $HOST /bin/bash <<EOF
+  service NetworkManager stop
   set -x
   echo "$VFS > /sys/class/infiniband/${MLXID}/device/mlx5_num_vfs"
   echo "$VFS" > /sys/class/infiniband/${MLXID}/device/mlx5_num_vfs
-
+  
 EOF
 }
 
@@ -49,48 +50,35 @@ function set_vxlan_ovs() {
   OFFLOAD=${6:-"on"}
 
   if [[ "$OFFLOAD" == "on" ]]; then
-      OFL="on"
-      OFL2="true"
+      OFL="true"
   else
-      OFL="off"
-      OFL2="false"
+      OFL="false"
   fi
   
   ssh $CTRLRIP /bin/bash << EOF
     set -x
+    service NetworkManager stop
     CIF=\`ls /sys/class/infiniband/$CMLXID/device/net\`
     CIF=\${CIF/\//}
     PF0=\$CIF
-    VF0=`ls /sys/class/infiniband/$CMLXID/device/virtfn0/net/ 2> /dev/null`
+    VF0=\`ls /sys/class/infiniband/$CMLXID/device/virtfn0/net/ 2> /dev/null\`
     if [[ "\$VF0" == "" ]]; then
-       CBF=1
+      # Controller is BF
+       case "\$PF0" in
+         p0) 
+           VF0_REP="pf0hpf"
+         ;;
+         p1)
+           VF0_REP="pf1hpf"
+         ;;
+      esac
     fi
-    if [[ \$CBF == 1 ]]; then
-        case "\$CIF" in
-           p0)
-           VF0_REP=pf0hpf
-           ;;
-           p1)
-           VF0_REP=pf1hpf
-           ;;
-        esac
-    else
-        VF0_REP=\${CIF}_0
-        VF0=\${VF0/\//}
-        ifconfig \$VF0 $VF0IP
-        ifconfig \$VF0 up
-    fi
-    ifconfig \$PF0 $OUTER_LOCAL_IP/24
-    ifconfig \$PF0 up
-    ip link del ${VXLAN_IF_NAME}
-    ifconfig \$VF0_REP up
-
     # adding hw-tc-offload on
     echo update hw-tc-offload to \$PF0 and \$VF0_REP
   
-    ethtool -K \$VF0_REP hw-tc-offload $OFL
-    ethtool -K \$PF0 hw-tc-offload $OFL
-	
+    ethtool -K \$VF0_REP hw-tc-offload $OFFLOAD
+    ethtool -K \$PF0 hw-tc-offload $OFFLOAD
+    ifconfig \$PF0 $OUTER_LOCAL_IP up
     service openvswitch start
     ovs-vsctl del-br $OVSBR
     ovs-vsctl add-br $OVSBR
@@ -99,7 +87,7 @@ function set_vxlan_ovs() {
     options:local_ip=$OUTER_LOCAL_IP options:remote_ip=$OUTER_REMOTE_IP options:key=$VXLAN_KEY \
     options:dst_port=$VXLAN_PORT
 	
-   ovs-vsctl set Open_vSwitch . other_config:hw-offload=$OFL2
+   ovs-vsctl set Open_vSwitch . other_config:hw-offload=$OFL
    service openvswitch restart
    ifconfig $OVSBR up
    ovs-vsctl show
@@ -115,18 +103,15 @@ function add_ovs_vxlan_ports() {
       NOVFS=($(seq 0 $(( $VFS - 1 ))))
       CIF=\`ls /sys/class/infiniband/$CMLXID/device/net\`
       CIF=\${CIF/\//}
-      VF0=`ls /sys/class/infiniband/$CMLXID/device/virtfn0/net/ 2> /dev/null`
+      VF0=\`ls /sys/class/infiniband/$CMLXID/device/virtfn0/net/ 2> /dev/null\`
       if [[ "\$VF0" == "" ]]; then
-        CBF=1
-      fi
-      if [[ \$CBF == 1 ]]; then
         case "\$CIF" in
-           p0)
-           VFX_REP=pf0vf
-           ;;
-           p1)
-           VFX_REP=pf1vf
-           ;;
+          p0)
+          VFX_REP=pf0vf
+          ;;
+          p1)
+          VFX_REP=pf1vf
+          ;;
         esac
       else
         VFX_REP=\${CIF}_
@@ -143,11 +128,12 @@ EOF
 }
 
 function set_host_vf_ips() {
-# set_host_vf_ips [HOST] [MLXID] [VF0IP]
+# set_host_vf_ips [HOST] [MLXID] [VF0IP] [offload]
     
   HOST=$1
   HMLXID=$2
   VF0IP=$3
+  OFL=${4:-"on"}
   ssh -x $HOST /bin/bash <<EOF
     #set -x
     CIF=\`ls /sys/class/infiniband/$HMLXID/device/net\`
@@ -155,13 +141,21 @@ function set_host_vf_ips() {
     IPB=(`echo $VF0IP | sed "s/\./ /g"`)
     IP3B=\${IPB[2]}
     #set -x
-    netdevs=(\`ls /sys/class/infiniband/$HMLXID/device/virtfn*/net/\`)
+    ifconfig \${CIF}_0 > /dev/null
+    if [[ \$? == 1 ]]; then
+      netdevs=(dummy \$CIF \`ls /sys/class/infiniband/$HMLXID/device/virtfn*/net/\`)
+    else
+      netdevs=(\`ls /sys/class/infiniband/$HMLXID/device/virtfn*/net/\`)
+    fi
     for i in \$( seq 1 2 \${#netdevs[@]} ); do
       ND=\${netdevs[\$i]}
       cmd="ifconfig \$ND \${IPB[0]}.\${IPB[1]}.\$IP3B.\${IPB[3]}/24 up"
+      cmd2="ethtool -K \$ND hw-tc-offload $OFL"
       IP3B=\$(( \$IP3B + 1 ))
       echo \$cmd
       eval "\$cmd"
+      echo \$cmd2
+      eval "\$cmd2"
     done
 EOF
 }
@@ -184,3 +178,5 @@ function set_host_vf_mtu() {
     done
 EOF
 }
+
+

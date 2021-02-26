@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-source ../common_config
+source ../common_config.sh
 
 
 NoF=${1:-1}
