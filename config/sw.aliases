@@ -1,0 +1,14 @@
+swanctl_func() {
+#echo "$1 $2 $3"
+  for ((i=$2; i<=$3; i++)); do
+    cmd="swanctl $1 --child ${4}$i"
+    echo $cmd
+    eval '$cmd'
+  done
+}
+
+alias swciall='swanctl_func -i 0'
+alias swctall='swanctl_func -t 0'
+alias swci='swanctl_func -i '
+alias swct='swanctl_func -t '
+

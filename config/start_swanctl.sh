@@ -14,5 +14,5 @@ ssh -x $LCTRLR /bin/bash <<EOF
   service strongswan-starter restart
   sleep 2
   swanctl --load-all
-  swanctl -i --child $conn
+#  swanctl -i --child $conn
 EOF
