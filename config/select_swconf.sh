@@ -1,0 +1,1 @@
+../perf/select_swconf.sh
