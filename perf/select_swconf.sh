@@ -1,4 +1,28 @@
 #!/usr/bin/bash
+#
+# select_swconf.sh -
+#
+#  Links inactive swanctl connection files in SWC_DIR/tmp/ to
+#  SWC_DIR/ thereby make it active.
+#
+#  Delete other links if the '-d' switch is given.
+# 
+#
+
+function usage() {
+    SCRPTNAME=$0
+    echo "${SCRPTNAME} -- Simple select and enable strongSwan configuration"
+    echo "   from a list of available configuration files."
+    echo ""
+    echo "   : -h, --help This list."
+    echo "   : -d Delete other configuration links while linking the active"
+    echo "   :    configuration file."
+    echo "   : -v Verbose"
+    echo " "
+    exit 0
+}
+
+source ../config.dat
 
 OPTS=`getopt -o dv --long help -n "$0" -- "$@"`
 
@@ -10,6 +34,7 @@ while true; do
     case "$1" in
 	-d ) DELFILES=true; shift;shift ;;
 	-v ) set -x; shift;shift ;;
+       	-h ) usage(); shift;shift ;;
 	* ) break ;;
     esac
 done
@@ -28,7 +53,7 @@ while :
 do
   echo -n "Which entry? "
   read ENTRY
-  if ! isNum $ENTRY && [ $ENTRY -le $1 ]; then 
+  if ! isNum $ENTRY && [ $ENTRY -le $1 ]; then
     return 1
   else
     echo "Invalid entry."
@@ -38,14 +63,13 @@ done
 
 
 SWC_CONF=${1}
-SWC_DIR="/usr/local/etc/swanctl"
 SWC_CONF_DIR=${SWC_DIR}/conf.d/tmp
 
 
 if [ -e ${SWC_CONF_DIR} ]; then
     if [  -e ${SWC_CONF_DIR}/$SWC_CONF ] && [[ "$SWC_CONF" != "" ]]; then
 	conf=$SWC_CONF
-    else	
+    else
 	i=1
 	CONFs=(`ls ${SWC_CONF_DIR}/*.conf`)
 	CNT=${#CONFs[@]}
@@ -61,10 +85,10 @@ if [ -e ${SWC_CONF_DIR} ]; then
 	fi
 	conf=${CONFs[$ENTRY]}
     fi
-    
+
     if [ "$DELFILES" == true ]; then
 	find ${SWC_DIR}/conf.d -type l -exec rm -f {} \; -print && echo "Removed extraneous links"
     fi
     echo "Enabled $conf"
-    ln -s $conf ${SWC_DIR}/conf.d/. >& /dev/null	
+    ln -s $conf ${SWC_DIR}/conf.d/. >& /dev/null
 fi

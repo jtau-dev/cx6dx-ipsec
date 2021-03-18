@@ -1,3 +1,4 @@
+# Host SectionIPs
 # Host IPs
 # Local/Remote host IP, MLX ID, VF0 IP, number of VFs.
 # Group MTU
@@ -21,7 +22,7 @@ LCMLXID=mlx5_0
 RCMLXID=mlx5_0
 OVSBR=ovs-br
 
-#VXLAN
+# VXLAN Section
 # Local/Remote Gateway IP.
 # VXLAN port, ID, key, name.
 #
@@ -32,12 +33,12 @@ VXLAN_ID=13
 VXLAN_KEY=101
 VXLAN_IF_NAME=vxlan_sys_${VXLAN_PORT}
 
-# strongSwan
+# strongSwan Section
 SWC_DIR=/usr/local/etc/swanctl/conf.d/
 OP_MODE=tunnel # [transport/tunnel]
 OF_MODE=yes    # [full/yes/no]
 
-# Performance
+# Performance Section
 # named pipe directory to use, where to store and look
 # for all the named pipes for real-time performance data.
 # 

@@ -1,4 +1,11 @@
 #!/usr/bin/bash
+#
+# setup_swanctl_conf.sh -
+#  
+#  Create left/right swanctl configuration files.
+#
+#
+#
 
 function usage() {
     SCRPTNAME=$0
@@ -85,6 +92,8 @@ sed_script2="s/lhost%/$RH/g;s/rhost%/$LH/g"
 sed "$sed_script" ../strongswan/${GW_FILE%.*}_3.${GW_FILE##*.} >> /tmp/.${LEFT}
 sed "$sed_script2" ../strongswan/${GW_FILE%.*}_3.${GW_FILE##*.} >> /tmp/.${RIGHT}
 
+ssh -x $LCTRLR '[ ! -d ${SWC_DIR/tmp/ ] && mkdir ${SWC_DIR}/tmp'
+ssh -x $RCTRLR '[ ! -d ${SWC_DIR/tmp/ ] && mkdir ${SWC_DIR}/tmp'
 scp /tmp/.${LEFT} ${LCTRLR}:${SWC_DIR}/tmp/$LEFT
 scp /tmp/.${RIGHT} ${RCTRLR}:${SWC_DIR}/tmp/$RIGHT
 
