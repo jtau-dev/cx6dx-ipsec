@@ -27,11 +27,11 @@ esac
 #echo $SETHOST
 
 if [[ "$SETHOST" == "local" || "$SETHOST" == "both" ]]; then
-    set_host_vf_mtu $LHOST $LMLXID
+    set_host_vf_mtu $LHOST $LPCIDEV
 fi
 
 if [[ "$SETHOST" == "remote" || "$SETHOST" == "both" ]]; then
-    set_host_vf_mtu $RHOST $RMLXID
+    set_host_vf_mtu $RHOST $RPCIDEV
 fi
 
 

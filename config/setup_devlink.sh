@@ -14,12 +14,12 @@ TYPE=${2:-full}
 
 if [[ "$SETHOST" == "local" || "$SETHOST" == "both" ]]; then
   echo "Configuring local host ..."
-  setdevlink $LCMLXID $LCTRLR $TYPE
+  setdevlink $LCPCIDEV $LCTRLR $TYPE
 fi
 
 
 if [[ "$SETHOST" == "remote" || "$SETHOST" == "both" ]]; then
   echo "Configuring remote host ..."
-  setdevlink $RCMLXID $RCTRLR $TYPE
+  setdevlink $RCPCIDEV $RCTRLR $TYPE
 fi
 

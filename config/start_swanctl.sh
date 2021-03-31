@@ -2,17 +2,25 @@
 
 source ../config.dat
 
-conn=${1:-hh}
+SETHOST=${1:-both}
 
-ssh -x $RCTRLR /bin/bash <<EOF
-  service strongswan-starter restart
-  sleep 2
-  swanctl --load-all
+if [[ "$SETHOST" == "local" || "$SETHOST" == "both" ]]; then
+  echo "Restarting strongswan on the local host ..."
+
+  ssh -x $RCTRLR /bin/bash <<EOF
+    service strongswan-starter restart
+    sleep 2
+    swanctl --load-all
 EOF
 
-ssh -x $LCTRLR /bin/bash <<EOF
-  service strongswan-starter restart
-  sleep 2
-  swanctl --load-all
-#  swanctl -i --child $conn
+fi
+
+if [[ "$SETHOST" == "remote" || "$SETHOST" == "both" ]]; then
+  echo "Restarting strongswan on the remote host ..."
+
+  ssh -x $LCTRLR /bin/bash <<EOF
+    service strongswan-starter restart
+    sleep 2
+    swanctl --load-all
 EOF
+fi

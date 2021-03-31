@@ -1,40 +1,47 @@
+# Host SectionIPs
 # Host IPs
 # Local/Remote host IP, MLX ID, VF0 IP, number of VFs.
 # Group MTU
 #
 LHOST=10.15.4.92
 RHOST=10.15.4.93
-LMLXID=mlx5_2
-RMLXID=mlx5_0
+LPCIDEV=3b:00.0
+RPCIDEV=3b:00.0
 LVFIP0=1.1.1.1
 RVFIP0=1.1.1.2
 VFS=10
-MTU=1450
+MTU=1400
 
 # Controller IPs
 # Local/Remote controller IP, MLX ID.
 # OVS bridge name
 #
 LCTRLR=10.15.4.240
-RCTRLR=10.15.4.139
-LCMLXID=mlx5_0
-RCMLXID=mlx5_0
+RCTRLR=10.15.4.212
+LCPCIDEV=03:00.0
+RCPCIDEV=03:00.0
 OVSBR=ovs-br
 
-#VXLAN
+# VXLAN Section
 # Local/Remote Gateway IP.
 # VXLAN port, ID, key, name.
 #
 GW_LIP=192.168.1.64
 GW_RIP=192.168.1.65
-VXLAN_PORT=4789
-VXLAN_ID=11
+VXLAN_PORT=4790
+VXLAN_ID=13
 VXLAN_KEY=100
 VXLAN_IF_NAME=vxlan_sys_${VXLAN_PORT}
 
-# Performance
+# strongSwan Section
+SWC_DIR=/etc/swanctl/conf.d
+OP_MODE=transport # [transport/tunnel]
+OF_MODE=full   # [full/yes/no]
+
+# Performance Section
 # named pipe directory to use, where to store and look
 # for all the named pipes for real-time performance data.
 # 
 FIFO_DIR=/local/sandbox/ipsec/fifos/
 RUNTIME=79200
+

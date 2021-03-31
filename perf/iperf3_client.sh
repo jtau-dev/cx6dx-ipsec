@@ -2,30 +2,41 @@
 #
 source ../config.dat
 
-#
-NoT=${1:-1}
-DIR=${2}
-CO=${3:-0} # core offset
+NoT=$VFS
+DIR=""
+CO=0 # core offset
 
-if [[ $2 =~ [\^0-9$] ]]; then
-    CO=$2
-    DIR=""
-fi
+OPTS=`getopt -o n:o:Rs:vh --long help -n "$0" -- "$@"`
 
-if [[ "$3" == "-R" ]]; then
-    DIR=$3
-fi
+if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
+
+eval set -- "$OPTS"
+while true; do
+    case "$1" in
+	-n ) NoT=$2; shift;shift ;;
+	-o ) CO=$2;  shift;shift ;;
+	-R ) DIR="-R"; shift;shift ;;
+	-s ) skip=$2; shift;shift ;;
+	-v ) set -x; shift;shift ;;
+       	-h ) usage; shift;shift ;;
+	* ) break ;;
+    esac
+done
+
 
 ifconfig | grep $LHOST > /dev/null
 if [[ $? == 1 ]]; then
   iSERVER=$LHOST
-  MLXID=$LMLXID
+  PCIDEV="0000:$RPCIDEV"
+  RPCIDEV="0000:$LPCIDEV"
+  LPCIDEV=$PCIDEV
 else
   iSERVER=$RHOST
-  MLXID=$RMLXID
+  RPCIDEV="0000:$RPCIDEV"
+  LPCIDEV="0000:$LPCIDEV"
 fi
 
-NUMA=`cat /sys/class/infiniband/$LMLXID/device/numa_node`
+NUMA=`cat /sys/bus/pci/devices/${LPCIDEV}/numa_node`
 NUMA_CORES=`lscpu | grep "NUMA node$NUMA" | awk '{print $4}'`
 NUMA_CORES=${NUMA_CORES//,/ }
 NUMA_CORES2=`lscpu | grep "NUMA node" | grep -v "NUMA node$NUMA" | awk '{print $4}'`
@@ -41,15 +52,15 @@ done
 #echo "${cores[@]}"
 
 T="
-  RIFN=\`ls /sys/class/infiniband/$MLXID/device/net/\`; \
+  RIFN=\`ls /sys/bus/pci/devices/${RPCIDEV}/net/\`; \
   RIFN=\${RIFN/\/};\
-  if [ -e /sys/class/infiniband/$MLXID/device/virtfn0 ]; then \
+  if [ -e /sys/bus/pci/devices/${RPCIDEV}/virtfn0 ]; then \
     echo 'No'
     ifconfig \${RIFN}_0 2> /dev/null;\
     if [[ \$? == 1 ]]; then\
-      VFN=(dummy \$RIFN \`ls /sys/class/infiniband/$MLXID/device/virtfn*/net/\`);\
+      VFN=(dummy \$RIFN \`ls /sys/bus/pci/devices/${RPCIDEV}/virtfn*/net/\`);\
     else \
-      VFN=(\`ls /sys/class/infiniband/$MLXID/device/virtfn*/net/\`);\
+      VFN=(\`ls /sys/bus/pci/devices/${RPCIDEV}/virtfn*/net/\`);\
       for i in \$( seq 1 2 \${#VFN[@]} ); do \
 	IP=\`ip addr show \${VFN[\$i]} | grep -E 'inet.*global' | awk '{print \$2}'\`;\
 	IP=\${IP//\/24/};\
@@ -72,8 +83,8 @@ T="
 RIPs=(`ssh -x $iSERVER "$T"`)
 #echo "${IPs[@]}"
 
-if [ ! -e /sys/class/infiniband/$LMLXID/device/virtfn0 ]; then
-    LIFN=`ls /sys/class/infiniband/$LMLXID/device/net/`
+if [ ! -e /sys/bus/pci/devices/$LPCIDEV/virtfn0 ]; then
+    LIFN=`ls /sys/bus/pci/devices/$LPCIDEV/net/`
     LIFN=${LIFN//}
     BIP=(`ip a s dev $LIFN | awk '/inet / {sub(/\/24/,"",$2); print "-B " $2}'`)
 fi
@@ -82,10 +93,11 @@ fi
 
 [[ $NoT -gt 16 ]] && NoTO=16 || NoTO=$NoT
 
-for i in $(seq 0 $(( NoT - 1 )) )
+for i in $(seq $skip $(( NoT - 1 + skip )) )
 do
-    corei=$(( i + CO ))
-    cmd="taskset -c ${cores[$corei]} iperf3 -c ${RIPs[$i]} -P1 --logfile ${FIFO_DIR}fifo${i} ${BIP[@]:$((2*i)):2} -t $RUNTIME $DIR &"
+    j=$(( i - skip ))
+    corei=$(( i + CO - skip ))
+    cmd="taskset -c ${cores[$corei]} iperf3 -c ${RIPs[$i]} -P1 --logfile ${FIFO_DIR}fifo${j} ${BIP[@]:$((2*i)):2} -t $RUNTIME $DIR &"
     echo $cmd
     eval "$cmd"
 

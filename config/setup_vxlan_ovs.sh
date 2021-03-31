@@ -25,9 +25,9 @@ esac
 
 
 if [[ "$SETHOST" == "local" || "$SETHOST" == "both" ]]; then
-  set_vxlan_ovs $LCTRLR $LCMLXID $GW_LIP $GW_RIP $LVFIP0 $OFFLOAD
+  set_vxlan_ovs $LCTRLR $LCPCIDEV $GW_LIP $GW_RIP $LVFIP0 $OFFLOAD
 fi
 
 if [[ "$SETHOST" == "remote" || "$SETHOST" == "both" ]]; then
-  set_vxlan_ovs $RCTRLR $RCMLXID $GW_RIP $GW_LIP $RVFIP0 $OFFLOAD
+  set_vxlan_ovs $RCTRLR $RCPCIDEV $GW_RIP $GW_LIP $RVFIP0 $OFFLOAD
 fi

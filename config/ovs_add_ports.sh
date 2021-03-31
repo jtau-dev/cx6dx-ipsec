@@ -22,11 +22,11 @@ esac
 
 if [[ "$SETHOST" == "local" || "$SETHOST" == "both" ]]; then
   echo "Bridging local SNIC VF repreentors ..."
-  add_ovs_vxlan_ports $LCTRLR $LCMLXID
+  add_ovs_vxlan_ports $LCTRLR $LCPCIDEV
 fi
 
 if [[ "$SETHOST" == "remote" || "$SETHOST" == "both" ]]; then
   echo "Bridging remote SNIC VF representors ..."
-  add_ovs_vxlan_ports $RCTRLR $RCMLXID
+  add_ovs_vxlan_ports $RCTRLR $RCPCIDEV
 fi
 

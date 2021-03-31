@@ -26,11 +26,11 @@ echo $VFS
 echo $SETHOST
 
 if [[ "$SETHOST" == "local" || "$SETHOST" == "both" ]]; then
-    set_host_vfs $LHOST $LMLXID
+    set_host_vfs $LHOST $LPCIDEV
 fi
 
 if [[ "$SETHOST" == "remote" || "$SETHOST" == "both" ]]; then
-    set_host_vfs $RHOST $RMLXID
+    set_host_vfs $RHOST $RPCIDEV
 fi
 
 

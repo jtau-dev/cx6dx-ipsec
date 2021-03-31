@@ -1,11 +1,44 @@
 #!/usr/bin/bash
-source ../config.dat
+#
 
-NoT=${1:-$VFS}
-CO=${2:-0} # core offset
+source ../config.dat
+skip=0
+NoT=${VFS}
+CO=0
+
+OPTS=`getopt -o n:o:s:vh --long help -n "$0" -- "$@"`
+
+if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
+
+eval set -- "$OPTS"
+while true; do
+    case "$1" in
+	-n ) NoT=$2; shift;shift ;;
+	-o ) CO=$2; shift;shift ;;
+	-s ) skip=$2; shift;shift ;;
+	-v ) set -x; shift;shift ;;
+       	-h ) usage; shift;shift ;;
+	* ) break ;;
+    esac
+done
+
+ifconfig | grep $RHOST > /dev/null
+if [[ $? == 1 ]]; then
+  iSERVER=$LHOST
+  RPCIDEV="0000:$LPCIDEV"
+  PCIDEV="0000:$RPCIDEV"
+  RPCIDEV="0000:$LPCIDEV"
+  LPCIDEV=$PCIDEV
+else
+  iSERVER=$RHOST
+  LPCIDEV="0000:$LPCIDEV"
+  RPCIDEV="0000:$RPCIDEV"
+fi
+
+
 
 # set -x 
-NUMA=`cat /sys/class/infiniband/$RMLXID/device/numa_node`
+NUMA=`cat /sys/bus/pci/devices/${RPCIDEV}/numa_node`
 NUMA_CORES=`lscpu | grep "NUMA node$NUMA" | awk '{print $4}'`
 NUMA_CORES=${NUMA_CORES//,/ }
 
@@ -23,12 +56,13 @@ for c in ${NC[@]}; do
 done
 #echo "${cores[@]}"
 
-RIFN=`ls /sys/class/infiniband/$RMLXID/device/net/`;
-RIFN=${RIFN//};
+RIFN=`ls /sys/bus/pci/devices/${RPCIDEV}/net`
+RIFN=${RIFN///};
+#echo $RIFN
 
-if [ -e /sys/class/infiniband/$RMLXID/device/virtfn0 ]; then
-    VFN=(dummy $RIFN `ls /sys/class/infiniband/$RMLXID/device/virtfn*/net/`)
-    echo "VFN=${VFN[@]}"
+if [ -e /sys/bus/pci/devices/${RPCIDEV}/virtfn0 ]; then
+    VFN=(dummy $RIFN `ls /sys/bus/pci/devices/${RPCIDEV}/virtfn*/net/`)
+#    echo "VFN=${VFN[@]}"
     for i in $( seq 1 2 ${#VFN[@]} ); do 
       IP=`ip addr show ${VFN[$i]} | grep -E 'inet.*global' | awk '{print $2}'`
       IP=${IP///24/}
@@ -38,13 +72,12 @@ else
     IPs=(`ip a s dev $RIFN | awk '/inet / {sub(/\/24/,"",$2); print $2}'`)
 fi
 
-
-echo ${IPs[@]}
+#echo ${IPs[@]}
 #[[ $NoT -gt 16 ]] && NoTO=16 ||  NoTO=$NoT
 
-for i in $( seq 0 $(( NoT - 1)) )
+for i in $( seq $skip $(( NoT - 1 + skip)) )
 do
-  coren=$(( cores[i + CO ] ))
+  coren=$(( cores[i + CO - skip ] ))
   cmd="taskset -c $coren iperf3 -s -B ${IPs[$i]}&"
   echo $cmd
   eval $cmd
