@@ -39,7 +39,7 @@ EOF
        devlink dev eswitch set pci/${PCIDEV} mode switchdev
      fi
      grep Ubuntu /etc/os-release >& /dev/null
-     if [[ \$? == 0 ]]; then
+     if [[ \$? == 1 ]]; then
        service openvswitch stop
      else
        service openvswitch-switch stop
@@ -62,60 +62,6 @@ function set_host_vfs() {
 EOF
 }
 
-function set_ovs() {
-# set_ovs [controller IP] [controller PCIDEV] [Offload=on/off]
-    
-  CTRLRIP=$1
- # CMLXID=$2
-  PCIDEV="0000:$2"
-  OFFLOAD=${3:-"on"}
-
-  if [[ "$OFFLOAD" == "on" ]]; then
-      OFL="true"
-  else
-      OFL="false"
-  fi
-  
-  ssh $CTRLRIP /bin/bash << EOF
-    set -x
-    service NetworkManager stop
-    CIF=\`ls /sys/bus/pci/devices/${PCIDEV}/net\`
-    CIF=\${CIF/\//}
-    PF0=\$CIF
-    VF0=\`ls /sys/bus/pci/devices/${PCIDEV}/virtfn0/net/ 2> /dev/null\`
-    if [[ "\$VF0" == "" ]]; then
-      # Controller is BF
-       case "\$PF0" in
-         p0) 
-           VF0_REP="pf0hpf"
-         ;;
-         p1)
-           VF0_REP="pf1hpf"
-         ;;
-      esac
-    fi
-    # adding hw-tc-offload on
-    echo update hw-tc-offload to \$PF0 and \$VF0_REP
-  
-    ethtool -K \$PF0 hw-tc-offload $OFFLOAD
-    ifconfig \$PF0 $OUTER_LOCAL_IP up
-    grep Ubuntu /etc/os-release > /dev/null
-    if [[ \$? == 0 ]]; then
-       OVS="openvswitch"
-    else
-       OVS="openvswitch-switch"
-    fi
-    service \$OVS start
-    ovs-vsctl del-br $OVSBR
-    ovs-vsctl add-br $OVSBR
-    ovs-vsctl add-port $OVSBR \$VF0_REP
-	
-   ovs-vsctl set Open_vSwitch . other_config:hw-offload=$OFL
-   service \$OVS restart
-   ifconfig $OVSBR up
-   ovs-vsctl show
-EOF
-}
 
 function set_vxlan_ovs() {
 # set_vxlan_ovs [controller IP] [controller PCIDEV] [Local GW IP] [Remote GW IP] [VFIP0] [Offload=on/off]
@@ -126,12 +72,14 @@ function set_vxlan_ovs() {
   OUTER_LOCAL_IP=$3
   OUTER_REMOTE_IP=$4
   VF0IP=$5
-  OFFLOAD=${6:-"on"}
+  OFFLOAD=${6:-"$OF_MODE"}
 
-  if [[ "$OFFLOAD" == "on" ]]; then
+  if [[ "$OFFLOAD" == "yes" || "$OFFLOAD" == "full" ]]; then
       OFL="true"
+      ETHOFL=on
   else
       OFL="false"
+      ETHOFL=off      
   fi
   
   ssh $CTRLRIP /bin/bash << EOF
@@ -157,21 +105,24 @@ function set_vxlan_ovs() {
     # adding hw-tc-offload on
     echo update hw-tc-offload to \$PF0 and \$VF0_REP
   
-    ethtool -K \$VF0_REP hw-tc-offload $OFFLOAD
-    ethtool -K \$PF0 hw-tc-offload $OFFLOAD
+    ethtool -K \$VF0_REP hw-tc-offload $ETHOFL
+    ethtool -K \$PF0 hw-tc-offload $ETHOFL
     ifconfig \$PF0 $OUTER_LOCAL_IP up
     grep Ubuntu /etc/os-release > /dev/null
-    if [[ \$? == 0 ]]; then
+    if [[ \$? == 1 ]]; then
        OVS="openvswitch"
     else
        OVS="openvswitch-switch"
     fi
     service \$OVS start
     sleep 2
-    BRS=(\`ovs-vsctl show | grep Bridge | awk '{print \$2}'\`)
+    BRS=(\`ovs-vsctl list-br\`)
     if [ \${#BRS[@]} -gt 0 ]; then
        for br in \${BRS[@]}; do
-          ovs-vsctl del-br \$br
+          ovs-vsctl list-ports \$br | grep -E "\$PF0||\$VF0_REP"
+          if [[ \$? == 0 ]]; then
+            ovs-vsctl del-br \$br
+          fi
        done
     fi
     ovs-vsctl add-br $OVSBR
@@ -226,7 +177,9 @@ function set_host_vf_ips() {
   HOST=$1
   PCIDEV="0000:$2"
   VF0IP=$3
-  OFL=${4:-"on"}
+  ETHOFL=${4:-"on"}
+
+  
   ssh -x $HOST /bin/bash <<EOF
     set -x
     CIF=\`ls /sys/bus/pci/devices/${PCIDEV}/net\`
@@ -244,12 +197,12 @@ function set_host_vf_ips() {
     for i in \$( seq 1 2 \${#netdevs[@]} ); do
       ND=\${netdevs[\$i]}
       cmd="ifconfig \$ND \${IPB[0]}.\${IPB[1]}.\$IP3B.\${IPB[3]}/24 up"
-      cmd2="ethtool -K \$ND hw-tc-offload $OFL"
+      cmd2="ethtool -K \$ND hw-tc-offload $ETHOFL"
       IP3B=\$(( \$IP3B + 1 ))
       echo \$cmd
       eval "\$cmd"
       echo \$cmd2
-#     eval "\$cmd2"
+      eval "\$cmd2"
     done
 EOF
 }

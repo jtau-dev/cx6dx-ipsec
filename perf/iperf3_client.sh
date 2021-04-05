@@ -5,6 +5,7 @@ source ../config.dat
 NoT=$VFS
 DIR=""
 CO=0 # core offset
+skip=0
 
 OPTS=`getopt -o n:o:Rs:vh --long help -n "$0" -- "$@"`
 
@@ -45,8 +46,8 @@ NC=(${NUMA_CORES[@]} ${NUMA_CORES2[@]} ${NUMA_CORES[@]} ${NUMA_CORES2[@]})
 
 for c in ${NC[@]}; do
     if [[ $c =~ [-] ]]; then
-	C=${c/-/ }
-	cores=( ${cores[@]} $(seq $C) )
+      C=${c/-/ }
+      cores=( ${cores[@]} $(seq $C) )
     fi
 done
 #echo "${cores[@]}"
@@ -55,51 +56,59 @@ T="
   RIFN=\`ls /sys/bus/pci/devices/${RPCIDEV}/net/\`; \
   RIFN=\${RIFN/\/};\
   if [ -e /sys/bus/pci/devices/${RPCIDEV}/virtfn0 ]; then \
-    echo 'No'
     ifconfig \${RIFN}_0 2> /dev/null;\
-    if [[ \$? == 1 ]]; then\
-      VFN=(dummy \$RIFN \`ls /sys/bus/pci/devices/${RPCIDEV}/virtfn*/net/\`);\
-    else \
+    if [[ \$? == 0 ]]; then\
       VFN=(\`ls /sys/bus/pci/devices/${RPCIDEV}/virtfn*/net/\`);\
-      for i in \$( seq 1 2 \${#VFN[@]} ); do \
-	IP=\`ip addr show \${VFN[\$i]} | grep -E 'inet.*global' | awk '{print \$2}'\`;\
-	IP=\${IP//\/24/};\
-	echo \$IP;\
-      done;\
-    fi\
-  else
-    IPs=(\`ip a s dev \$RIFN | awk '/inet / {sub(/\/24/,\"\",\$2); print \$2}'\`);
-    for ip in \${IPs[@]}; do\
-      echo \$ip;\
+    else \
+      VFN=(dummy \$RIFN \`ls /sys/bus/pci/devices/${RPCIDEV}/virtfn*/net/\`);\
+    fi; \
+    for i in \$( seq 1 2 \${#VFN[@]} ); do \
+      IP=\`ip addr show \${VFN[\$i]} | grep -E 'inet.*global' | awk '{print \$2}'\`;\
+      IP=\${IP//\/24/};\
+      echo \$IP;\
     done;\
+  else\
+    IPs=(\`ip a s dev \$RIFN | awk '/inet / {sub(/\/24/,\"\",\$2); print \$2}'\`);\
+    echo \${IPs[@]};\
   fi
 "
-
 
 #    IPs=\(`ip a s dev \$RIFN | awk '/inet / {print \$2}'`\);\
 #  fi\
 #"
 
 RIPs=(`ssh -x $iSERVER "$T"`)
-#echo "${IPs[@]}"
+#echo "${RIPs[@]}"
 
-if [ ! -e /sys/bus/pci/devices/$LPCIDEV/virtfn0 ]; then
-    LIFN=`ls /sys/bus/pci/devices/$LPCIDEV/net/`
-    LIFN=${LIFN//}
+LIFN=`ls /sys/bus/pci/devices/${LPCIDEV}/net/`
+LIFN=${LIFN/\/};
+
+if [ -e /sys/bus/pci/devices/$LPCIDEV/virtfn0 ]; then
+    ifconfig ${LIFN}_0 >& /dev/null
+    if [[ $? == 0 ]]; then
+      VFN=(`ls /sys/bus/pci/devices/${LPCIDEV}/virtfn*/net/`);
+    else
+      VFN=(dummy $LIFN `ls /sys/bus/pci/devices/${LPCIDEV}/virtfn*/net/`);
+    fi
+  for i in $( seq 1 2 ${#VFN[@]} ); do
+    IP=`ip addr show ${VFN[$i]} | grep -E 'inet.*global' | awk '{print $2}'`
+    IP=${IP///24/}
+    BIP=(${BIP[@]} "-B $IP")
+  done
+else
     BIP=(`ip a s dev $LIFN | awk '/inet / {sub(/\/24/,"",$2); print "-B " $2}'`)
 fi
 
-#echo "YES: ${BIP[@]}"
-
-[[ $NoT -gt 16 ]] && NoTO=16 || NoTO=$NoT
+#echo "${BIP[@]}"
+#[[ $NoT -gt 16 ]] && NoTO=16 || NoTO=$NoT
+[[ "$OF_MODE" == "full" ]] && MSZ="-M 1350"
 
 for i in $(seq $skip $(( NoT - 1 + skip )) )
 do
     j=$(( i - skip ))
     corei=$(( i + CO - skip ))
-    cmd="taskset -c ${cores[$corei]} iperf3 -c ${RIPs[$i]} -P1 --logfile ${FIFO_DIR}fifo${j} ${BIP[@]:$((2*i)):2} -t $RUNTIME $DIR &"
+    cmd="taskset -c ${cores[$corei]} iperf3 $MSZ -c ${RIPs[$i]} -P1 --logfile ${FIFO_DIR}fifo${j} ${BIP[@]:$((2*i)):2} -t $RUNTIME $DIR &"
     echo $cmd
     eval "$cmd"
-
 done    
 wait 

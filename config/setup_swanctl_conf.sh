@@ -66,8 +66,11 @@ sed "$sed_script" ../strongswan/${GW_FILE%.*}_1.${GW_FILE##*.} > /tmp/.${LEFT}
 sed "$sed_script2" ../strongswan/${GW_FILE%.*}_1.${GW_FILE##*.} > /tmp/.${RIGHT}
 
 # section 2
-if [[ "$OP_MODE" == "transport" ]]; then
+if [[ "$OP_MODE" == "transport"  ]]; then
     OPM="mode = transport"
+    PORTSTR='\[udp\/4789\]'
+    GW_LIP="${GW_LIP}\/24 $PORTSTR"
+    GW_RIP="${GW_RIP}\/24 $PORTSTR"
     sed_script="s/hh%/${SAN}0/g;s/ltaddr%/$GW_LIP/g;s/rtaddr%/$GW_RIP/g;s/op_mode%/$OPM/g;s/ol%/$OF_MODE/"
     sed_script2="s/hh%/${SAN}0/g;s/ltaddr%/$GW_RIP/g;s/rtaddr%/$GW_LIP/g;s/op_mode%/$OPM/g;s/ol%/$OF_MODE/"    
     sed "$sed_script" ../strongswan/${GW_FILE%.*}_2.${GW_FILE##*.} >> /tmp/.${LEFT}

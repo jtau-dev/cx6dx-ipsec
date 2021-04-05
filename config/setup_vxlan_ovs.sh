@@ -1,12 +1,12 @@
 #!/bin/bash
-# setup_vxlan_ovs.sh [local/remote/both] [offload on/off] 
+# setup_vxlan_ovs.sh [local/remote/both] [offload full/yes/no] 
 #
 
 source ../common_config.sh
 
 set -x #echo on
 SETHOST=${1:-both}
-OFFLOAD=${2:-"on"}
+OFFLOAD=${2:-"$OF_MODE"}
 
 if [[ "$OFFLOAD" == "local" || "$OFFLOAD" == "remote" || \
         "$OFFLOAD" == "both" ]]; then

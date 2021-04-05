@@ -73,7 +73,6 @@ else
 fi
 
 #echo ${IPs[@]}
-#[[ $NoT -gt 16 ]] && NoTO=16 ||  NoTO=$NoT
 
 for i in $( seq $skip $(( NoT - 1 + skip)) )
 do
