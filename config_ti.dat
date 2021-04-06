@@ -17,7 +17,7 @@ MTU=1400
 # OVS bridge name
 #
 LCTRLR=10.15.4.200
-RCTRLR=10.15.4.235
+RCTRLR=10.15.4.236
 LCPCIDEV=03:00.0
 RCPCIDEV=03:00.0
 OVSBR=ovs-br
@@ -34,6 +34,8 @@ VXLAN_KEY=100
 VXLAN_IF_NAME=vxlan_sys_${VXLAN_PORT}
 
 # strongSwan Section
+# On the IPSec controller
+#
 SWC_DIR=/etc/swanctl/conf.d
 OP_MODE=transport # [transport/tunnel]
 OF_MODE=full   # [full/yes/no]
@@ -41,7 +43,9 @@ OF_MODE=full   # [full/yes/no]
 # Performance Section
 # named pipe directory to use, where to store and look
 # for all the named pipes for real-time performance data.
-# 
+#
+# On the host where iperf/iperf3 is run
+#
 FIFO_DIR=/local/sandbox/ipsec/fifos/
 RUNTIME=79200
 

@@ -1,3 +1,4 @@
+
 #!/usr/bin/bash
 source ./config.dat
 
@@ -17,8 +18,11 @@ function setdevlink() {
   fi
   ssh -x $HOST <<EOF
   set -x
-  if [ -e /sys/bus/pci/devices/${HPCIDEV}/mlx5_num_vfs ]; then 
-      echo 0 > /sys/bus/pci/devices/${HPCIDEV}/mlx5_num_vfs
+  if [ -e /sys/bus/pci/devices/${HPCIDEV}/mlx5_num_vfs ]; then
+      N=`cat /sys/bus/pci/devices/${HPCIDEV}/mlx5_num_vfs`
+     if [ \$N -ne 0 ]; then
+       echo 0 > /sys/bus/pci/devices/${HPCIDEV}/mlx5_num_vfs
+     fi
   fi
 EOF
   
@@ -108,6 +112,7 @@ function set_vxlan_ovs() {
     ethtool -K \$VF0_REP hw-tc-offload $ETHOFL
     ethtool -K \$PF0 hw-tc-offload $ETHOFL
     ifconfig \$PF0 $OUTER_LOCAL_IP up
+
     grep Ubuntu /etc/os-release > /dev/null
     if [[ \$? == 1 ]]; then
        OVS="openvswitch"
@@ -133,6 +138,8 @@ function set_vxlan_ovs() {
 	
    ovs-vsctl set Open_vSwitch . other_config:hw-offload=$OFL
    service \$OVS restart
+
+   ifconfig \$VF0_REP up
    ifconfig $OVSBR up
    ovs-vsctl show
 EOF
