@@ -15,18 +15,21 @@ These are the quick-and-dirty scripts.
    c. setup_hostvfs.sh
    d. setup_hostvfips.sh
    e. ovs_add_ports.sh
-   f. setup_swanctl_conf.sh
-   g. start_swanctl.sh
+   f. setup_hostips.sh
+   g. setup_vf_mtu.sh
+   h. setup_swanctl_conf.sh
+   i. select_swconf.sh
+   j. start_swanctl.sh
+   k. swc.sh
 4. kernel/
    a. offload_patches.tar.bz2
    b. defconfig
 5. strongswan/
-   a. left.conf
-   b. right.conf
+   a. gw_[123].conf
 6. perf/
    a. mkfifos.sh
-   b. iperf3_server2.sh
-   c. iperf3_clients2.sh
+   b. iperf3_server.sh
+   c. iperf3_clients.sh
    d. perfsum2.pl
                
 
