@@ -84,21 +84,21 @@ SWC_CONF_DIR=${SWC_DIR}/tmp
 KEYS=`printf '%s\n' "${!CTRLRS[@]}" | tac | tr '\n' ' '; echo`
 for key in ${KEYS[@]} ; do
   echo "Configuring \"$key\" controller: ${CTRLRS[$key]}"
-  
+  TMPFILE=/tmp/.tmp.out
   shopt -s lastpipe
-  ssh -x ${CTRLRS[$key]} <<EOF | read CONFs
+  ssh -x ${CTRLRS[$key]} <<EOF >& $TMPFILE
    #   echo "SWC_DIR = $SWC_DIR"
    #   echo "SWC_CONF_DIR=${SWC_CONF_DIR}"
       if [ -e ${SWC_CONF_DIR} ]; then
 	  if [  -e ${SWC_CONF_DIR}/$SWC_CONF ] && [[ "$SWC_CONF" != "" ]]; then
-	      conf=${SWC_CONF_DIR}/$SWC_CONF
+	      CONFs=(${SWC_CONF_DIR}/$SWC_CONF)
 	  else
 	      CONFs=(\`ls ${SWC_CONF_DIR}/*.conf\`)
-	      echo "\${CONFs[@]}"
 	  fi
+          echo "\${CONFs[@]}"
       fi
 EOF
-   CONFs=($CONFs)
+   CONFs=(`cat $TMPFILE | tail -1`)
    CNT=${#CONFs[@]}
    #echo "CONFs=${CONFs[@]} CNT=$CNT"
 
