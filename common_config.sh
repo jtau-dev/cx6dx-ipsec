@@ -31,6 +31,11 @@ EOF
 
      ip x s f
      ip x p f
+     mdevs=(\`devlink dev show | awk '/mdev/ {print substr(\$0,6,length(\$0))}'\`)
+     if [ \${#mdevs[@]} -ne 0 ]; then
+        mlnx-sf -a remove --uuid \${mdevs[0]} > /dev/null
+        mlnx-sf -a remove --uuid \${mdevs[1]} > /dev/null
+     fi
      CIF=\`ls /sys/bus/pci/devices/${PCIDEV}/net\`
      CIF=\${CIF/\//}
      if [ -e /sys/bus/pci/devices/${PCIDEV}/net/\${CIF}/compat/devlink/steering_mode ]; then
