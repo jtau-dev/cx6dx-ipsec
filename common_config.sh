@@ -18,10 +18,10 @@ function setdevlink() {
   fi
   ssh -x $HOST <<EOF
   set -x
-  if [ -e /sys/bus/pci/devices/${HPCIDEV}/mlx5_num_vfs ]; then
-      N=`cat /sys/bus/pci/devices/${HPCIDEV}/mlx5_num_vfs`
+  if [ -e /sys/bus/pci/devices/${HPCIDEV}/sriov_numvfs ]; then
+      N=`cat /sys/bus/pci/devices/${HPCIDEV}/sriov_numvfs`
      if [ \$N -ne 0 ]; then
-       echo 0 > /sys/bus/pci/devices/${HPCIDEV}/mlx5_num_vfs
+       echo 0 > /sys/bus/pci/devices/${HPCIDEV}/sriov_numvfs
      fi
   fi
 EOF
@@ -31,12 +31,18 @@ EOF
 
      ip x s f
      ip x p f
-     mdevs=(\`devlink dev show | awk '/mdev/ {print substr(\$0,6,length(\$0))}'\`)
+     mdevs=(\`devlink dev show | grep auxiliary\`)
+#    mdevs=(\`devlink dev show | awk '/mdev/ {print substr(\$0,6,length(\$0))}'\`)
      if [ \${#mdevs[@]} -ne 0 ]; then
-        mlnx-sf -a remove --uuid \${mdevs[0]} > /dev/null
-        mlnx-sf -a remove --uuid \${mdevs[1]} > /dev/null
+        mdevs=(\`mlnx-sf -a show | awk '/SF Index/ {print \$3}'\`)
+         for mdev in \$mdevs; do
+           mlnx-sf -a delete -i \$mdev > /dev/null
+         done
+#        mlnx-sf -a remove --uuid \${mdevs[0]} > /dev/null
+#        mlnx-sf -a remove --uuid \${mdevs[1]} > /dev/null
      fi
-     CIF=\`ls /sys/bus/pci/devices/${PCIDEV}/net\`
+     CIFs=(\`ls /sys/bus/pci/devices/${PCIDEV}/net\`)
+     CIF=\${CIFs[0]}
      CIF=\${CIF/\//}
      if [ -e /sys/bus/pci/devices/${PCIDEV}/net/\${CIF}/compat/devlink/steering_mode ]; then
        devlink dev eswitch set pci/${PCIDEV} mode legacy
@@ -66,8 +72,8 @@ function set_host_vfs() {
   ssh -x $HOST /bin/bash <<EOF
   service NetworkManager stop
   set -x
-  echo "$VFS > /sys/bus/pci/devices/${PCIDEV}/mlx5_num_vfs"
-  echo "$VFS" > /sys/bus/pci/devices/${PCIDEV}/mlx5_num_vfs
+  echo "$VFS > /sys/bus/pci/devices/${PCIDEV}/sriov_numvfs"
+  echo "$VFS" > /sys/bus/pci/devices/${PCIDEV}/sriov_numvfs
 EOF
 }
 
@@ -94,7 +100,10 @@ function set_vxlan_ovs() {
   ssh $CTRLRIP /bin/bash << EOF
     set -x
     service NetworkManager stop
-    CIF=\`ls /sys/bus/pci/devices/${PCIDEV}/net\`
+#    CIF=\`ls /sys/bus/pci/devices/${PCIDEV}/net\`
+#    CIF=\${CIF/\//}
+    CIFs=(\`ls /sys/bus/pci/devices/${PCIDEV}/net\`)
+    CIF=\${CIFs[0]}
     CIF=\${CIF/\//}
     PF0=\$CIF
     VF0=\`ls /sys/bus/pci/devices/${PCIDEV}/virtfn0/net/ 2> /dev/null\`
@@ -157,8 +166,10 @@ function add_ovs_vxlan_ports() {
 
     ssh $CTRLRIP /bin/bash << EOF
       NOVFS=($(seq 0 $(( $VFS - 1 ))))
-      CIF=\`ls /sys/bus/pci/devices/${PCIDEV}/net\`
+      CIFs=(\`ls /sys/bus/pci/devices/${PCIDEV}/net\`)
+      CIF=\${CIFs[0]}
       CIF=\${CIF/\//}
+
       VF0=\`ls /sys/bus/pci/devices/${PCIDEV}/virtfn0/net/ 2> /dev/null\`
       if [[ "\$VF0" == "" ]]; then
         case "\$CIF" in
