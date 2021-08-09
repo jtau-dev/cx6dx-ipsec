@@ -1,0 +1,48 @@
+# Host SectionIPs
+# Host IPs
+# Local/Remote host IP, MLX ID, VF0 IP, number of VFs.
+# Group MTU
+#
+LHOST=10.7.12.179
+RHOST=10.7.12.8
+LPCIDEV=67:00.0
+RPCIDEV=67:00.0
+LVFIP0=10.7.13.179
+RVFIP0=10.7.13.8
+VFS=10
+MTU=1400
+
+# Controller IPs
+# Local/Remote controller IP, MLX ID.
+# OVS bridge name
+#
+LCTRLR=10.7.12.179
+RCTRLR=10.7.12.8
+LCPCIDEV=67:00.0
+RCPCIDEV=67:00.0
+OVSBR=ovs-br
+
+# VXLAN Section
+# Local/Remote Gateway IP.
+# VXLAN port, ID, key, name.
+#
+GW_LIP=10.7.12.179
+GW_RIP=10.7.12.8
+# Set VXLAN_PORT to -1 to enable zero VF multiple IP transport mode.
+VXLAN_PORT=-1
+VXLAN_ID=101
+VXLAN_KEY=10
+VXLAN_IF_NAME=vxlan_sys_${VXLAN_PORT}
+
+# strongSwan Section
+SWC_DIR=/usr/local/etc/swanctl/conf.d
+OP_MODE=transport # [transport/tunnel]
+OF_MODE=yes    # [full/yes/no]
+
+# Performance Section
+# named pipe directory to use, where to store and look
+# for all the named pipes for real-time performance data.
+# 
+FIFO_DIR=/local/sandbox/ipsec/fifos/
+RUNTIME=79200
+
