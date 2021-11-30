@@ -1,6 +1,21 @@
 #!/usr/bin/bash
 #
 
+function usage() {
+    SCRPTNAME=$0
+    echo "${SCRPTNAME} -- Launch [n] iperf3 processes as server[s]"
+    echo ""
+    echo "   : -h, --help This list."
+    echo "   : -n [n] Number processes to launch"
+    echo "   : -o [o] Core offset"
+    echo "   : -s [s] Skip s IPs. "
+    echo "   : -l [local|remote|both(default)] "
+    echo "   : -v Verbose"
+    echo " "
+    exit 0
+}
+
+
 source ../config.dat
 skip=0
 NoT=${VFS}
@@ -76,10 +91,12 @@ fi
 
 for i in $( seq $skip $(( NoT - 1 + skip)) )
 do
-  coren=$(( cores[i + CO - skip ] ))
-  cmd="taskset -c $coren iperf3 -s -B ${IPs[$i]}&"
-  echo $cmd
-  eval $cmd
+  if [ "$i" -lt "${#IPs[@]}" ]; then
+    coren=$(( cores[i + CO - skip ] ))
+    cmd="taskset -c $coren iperf3 -s -B ${IPs[$i]}&"
+    echo $cmd
+    eval $cmd
+  fi
  done
 wait
 

@@ -1,5 +1,20 @@
 #!/usr/bin/bash
 #
+
+function usage() {
+    SCRPTNAME=$0
+    echo "${SCRPTNAME} -- Launch [n] iperf3 processes as client[s]"
+    echo ""
+    echo "   : -h, --help This list."
+    echo "   : -n [n] Number processes to launch"
+    echo "   : -o [o] Core offset"
+    echo "   : -s [s] Skip s IPs. "
+    echo "   : -R Reverse direction."
+    echo "   : -v Verbose"
+    echo " "
+    exit 0
+}
+
 source ../config.dat
 
 NoT=$VFS
