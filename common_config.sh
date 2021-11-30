@@ -1,4 +1,3 @@
-
 #!/usr/bin/bash
 source ./config.dat
 
@@ -20,13 +19,13 @@ function setdevlink() {
   set -x
   if [ -e /sys/bus/pci/devices/${HPCIDEV}/sriov_numvfs ]; then
       N=`cat /sys/bus/pci/devices/${HPCIDEV}/sriov_numvfs`
-     if [ \$N -ne 0 ]; then
+     if [[ \$N -ne 0 ]]; then
        echo 0 > /sys/bus/pci/devices/${HPCIDEV}/sriov_numvfs
      fi
   fi
 EOF
-  
-  ssh -x $CTRLR /bin/bash <<EOF
+  echo "CTRLR=$CTRLR"
+  ssh -x $CTRLR /usr/bin/bash <<EOF
      set -x #echo on
 
      ip x s f
@@ -35,8 +34,10 @@ EOF
 #    mdevs=(\`devlink dev show | awk '/mdev/ {print substr(\$0,6,length(\$0))}'\`)
      if [ \${#mdevs[@]} -ne 0 ]; then
         mdevs=(\`mlnx-sf -a show | awk '/SF Index/ {print \$3}'\`)
-         for mdev in \$mdevs; do
+         for mdev in \${mdevs[@]}; do
+          echo "mlnx-sf -a delete -i \$mdev > /dev/null"
            mlnx-sf -a delete -i \$mdev > /dev/null
+#            mlnx-sf -a remove --uuid \$mdev > /dev/null
          done
 #        mlnx-sf -a remove --uuid \${mdevs[0]} > /dev/null
 #        mlnx-sf -a remove --uuid \${mdevs[1]} > /dev/null
@@ -45,13 +46,31 @@ EOF
      CIF=\${CIFs[0]}
      CIF=\${CIF/\//}
      if [ -e /sys/bus/pci/devices/${PCIDEV}/net/\${CIF}/compat/devlink/steering_mode ]; then
-       devlink dev eswitch set pci/${PCIDEV} mode legacy
-       sleep 1
-       echo dmfs > /sys/bus/pci/devices/${PCIDEV}/net/\${CIF}/compat/devlink/steering_mode
-       if [[ $TYPE == "full" ]]; then
-           echo full > /sys/class/net/\${CIF}/compat/devlink/ipsec_mode
+       if [[ "\${CIF}" == "p0" || "\${CIF}" == "p1" ]]; then
+          devlink dev eswitch set pci/0000:03:00.0 mode legacy
+          devlink dev eswitch set pci/0000:03:00.1 mode legacy
+          sleep 1
+          echo dmfs > /sys/bus/pci/devices/0000:03:00.0/net/p0/compat/devlink/steering_mode
+          echo dmfs > /sys/bus/pci/devices/0000:03:00.1/net/p1/compat/devlink/steering_mode
+       else
+         devlink dev eswitch set pci/${PCIDEV} mode legacy
+         echo dmfs > /sys/bus/pci/devices/${PCIDEV}/net/\${CIF}/compat/devlink/steering_mode
        fi
-       devlink dev eswitch set pci/${PCIDEV} mode switchdev
+       TYPE="crypto"
+       if [[ $TYPE == "full" ]]; then
+         if [[ "\${CIF}" == "p0" || "\${CIF}" == "p1" ]]; then
+           echo full > /sys/class/net/p0/compat/devlink/ipsec_mode
+           echo full > /sys/class/net/p1/compat/devlink/ipsec_mode
+         else
+           echo full > /sys/class/net/\${CIF}/compat/devlink/ipsec_mode
+         fi
+       fi
+       if [[ "\${CIF}" == "p0" || "\${CIF}" == "p1" ]]; then
+         devlink dev eswitch set pci/0000:03:00.0 mode switchdev
+         devlink dev eswitch set pci/0000:03:00.1 mode switchdev
+       else
+         devlink dev eswitch set pci/${PCIDEV} mode switchdev
+       fi
      fi
      grep Ubuntu /etc/os-release >& /dev/null
      if [[ \$? == 1 ]]; then
@@ -159,6 +178,29 @@ function set_vxlan_ovs() {
 EOF
 }
 
+function add_vxlan_ovs() {
+# set_vxlan_ovs [controller IP] [controller PCIDEV] [Local GW IP] [Remote GW IP] [VFIP0] [Offload=on/off]
+    
+  CTRLRIP=$1
+  OUTER_LOCAL_IP=$2
+  OUTER_REMOTE_IP=$3
+
+  ssh $CTRLRIP /bin/bash << EOF
+    set -x
+    BRS=(\`ovs-vsctl list-br\`)
+    if [ \${#BRS[@]} -gt 0 ]; then
+       for br in \${BRS[@]}; do
+         echo $br
+       done
+    fi
+    ovs-vsctl add-port \$br vxlan${VXLAN_ID} -- set interface vxlan${VXLAN_ID} type=vxlan \
+    options:local_ip=$OUTER_LOCAL_IP options:remote_ip=$OUTER_REMOTE_IP options:key=$VXLAN_KEY \
+    options:dst_port=$VXLAN_PORT
+    ovs-vsctl show
+EOF
+}
+
+
 function add_ovs_vxlan_ports() {
 # add_ovs_vxlan_ports [server IP] [Controller PCIDEV]
     CTRLRIP=$1
@@ -251,6 +293,7 @@ function set_host_ips() {
       echo \$cmd
       eval "\$cmd"
     done
+    ip link set \$CIF up
 EOF
 }
 
