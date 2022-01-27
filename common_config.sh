@@ -56,7 +56,6 @@ EOF
          devlink dev eswitch set pci/${PCIDEV} mode legacy
          echo dmfs > /sys/bus/pci/devices/${PCIDEV}/net/\${CIF}/compat/devlink/steering_mode
        fi
-       TYPE="crypto"
        if [[ $TYPE == "full" ]]; then
          if [[ "\${CIF}" == "p0" || "\${CIF}" == "p1" ]]; then
            echo full > /sys/class/net/p0/compat/devlink/ipsec_mode
@@ -292,8 +291,9 @@ function set_host_ips() {
       IP3B=\$(( \$IP3B + 1 ))
       echo \$cmd
       eval "\$cmd"
+      #sleep 5
     done
-    ip link set \$CIF up
+    ip link set dev \$CIF up
 EOF
 }
 
