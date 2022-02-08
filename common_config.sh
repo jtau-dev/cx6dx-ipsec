@@ -298,8 +298,9 @@ function set_host_ips() {
       IP3B=\$(( \$IP3B + 1 ))
       echo \$cmd
       eval "\$cmd"
+      #sleep 5
     done
-    ip link set \$CIF up
+    ip link set dev \$CIF up
 EOF
 }
 
