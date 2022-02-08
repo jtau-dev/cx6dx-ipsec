@@ -84,8 +84,8 @@ else
     for ((i=0;i<$NoSA;i++)) {
       ltip=`echo ${LTIP[@]} | tr ' ' '.'`
       rtip=`echo ${RTIP[@]} | tr ' ' '.'`
-      sed_script="s/hh%/${SAN}$i/g;s/ltaddr%/$ltip/g;s/rtaddr%/$rtip/g;s/op_mode%/$OPM/g;s/ol%/$OF_MODE/"
-      sed_script2="s/hh%/${SAN}$i/g;s/ltaddr%/$rtip/g;s/rtaddr%/$ltip/g;s/op_mode%/$OPM/g;s/ol%/$OF_MODE/"    
+      sed_script="s/hh%/${SAN}$i/g;s/ltaddr%/$ltip\/32/g;s/rtaddr%/$rtip\/32/g;s/op_mode%/$OPM/g;s/ol%/$OF_MODE/"
+      sed_script2="s/hh%/${SAN}$i/g;s/ltaddr%/$rtip\/32/g;s/rtaddr%/$ltip\/32/g;s/op_mode%/$OPM/g;s/ol%/$OF_MODE/"    
       sed "$sed_script" ../strongswan/${GW_FILE%.*}_2.${GW_FILE##*.} >> /tmp/.${LEFT}
       sed "$sed_script2" ../strongswan/${GW_FILE%.*}_2.${GW_FILE##*.} >> /tmp/.${RIGHT}
       (( LTIP[2]++ ))
