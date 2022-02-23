@@ -63,6 +63,13 @@ EOF
          else
            echo full > /sys/class/net/\${CIF}/compat/devlink/ipsec_mode
          fi
+       else
+         if [[ "\${CIF}" == "p0" || "\${CIF}" == "p1" ]]; then
+           echo "none" > /sys/class/net/p0/compat/devlink/ipsec_mode
+           echo "none" > /sys/class/net/p1/compat/devlink/ipsec_mode
+         else
+           echo "none" > /sys/class/net/\${CIF}/compat/devlink/ipsec_mode
+         fi
        fi
        if [[ "\${CIF}" == "p0" || "\${CIF}" == "p1" ]]; then
          devlink dev eswitch set pci/0000:03:00.0 mode switchdev
@@ -317,4 +324,23 @@ function set_host_vf_mtu() {
 EOF
 }
 
+function setgwip() {
+  PCIDEV="0000:$1"
+  HOST=$2
+  GWIP=$3
+  VF0IP=$4
 
+  IPB=(`echo $VF0IP | sed "s/\./ /g"`)  
+  IPR="${IPB[0]}.${IPB[1]}.0.0/16"
+  ssh -x $HOST /bin/bash <<EOF
+    #set -x
+    netdev=`ls /sys/bus/pci/devices/${PCIDEV}/net/`
+    cmd="ip addr add ${GWIP}/24 dev \$netdev"
+    echo "\$cmd"
+    eval "\$cmd"
+    # Add host route
+    cmd="ip r a $IPR via ${GWIP}"
+    echo "\$cmd"
+    eval "\$cmd"
+EOF
+}

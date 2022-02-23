@@ -3,12 +3,12 @@
 # Local/Remote host IP, MLX ID, VF0 IP, number of VFs.
 # Group MTU
 #
-LHOST=10.15.4.92
-RHOST=10.15.4.93
-LPCIDEV=3b:00.0
-RPCIDEV=35:00.0
-LVFIP0=1.1.1.1
-RVFIP0=1.1.1.2
+LHOST=10.9.31.53
+RHOST=10.9.31.54
+LPCIDEV=c1:00.0
+RPCIDEV=c1:00.0
+LVFIP0=1.2.1.1
+RVFIP0=1.3.1.2
 VFS=10
 MTU=1400
 
@@ -16,25 +16,25 @@ MTU=1400
 # Local/Remote controller IP, MLX ID.
 # OVS bridge name
 #
-LCTRLR=10.7.12.182
-RCTRLR=10.7.12.195
-LCPCIDEV=67:00.0
-RCPCIDEV=67:00.0
+LCTRLR=10.9.31.53
+RCTRLR=10.9.31.54
+LCPCIDEV=81:00.0
+RCPCIDEV=81:00.0
 OVSBR=ovs-br
 
 # VXLAN Section
 # Local/Remote Gateway IP.
 # VXLAN port, ID, key, name.
 #
-GW_LIP=10.7.12.182
-GW_RIP=10.7.12.195
+GW_LIP=192.168.3.64
+GW_RIP=192.168.3.65
 VXLAN_PORT=4790
 VXLAN_ID=13
 VXLAN_KEY=101
 VXLAN_IF_NAME=vxlan_sys_${VXLAN_PORT}
 
 # strongSwan Section
-SWC_DIR=/usr/local/etc/swanctl/conf.d
+SWC_DIR=/etc/strongswan/swanctl/conf.d
 OP_MODE=tunnel # [transport/tunnel]
 OF_MODE=yes    # [full/yes/no]
 
