@@ -3,7 +3,7 @@
 source ../common_config.sh
 
 
-NoF=${1:-1}
+NoF=${1:-$VFS}
 
 if [ ! -d $FIFO_DIR ]; then
     mkdir -p $FIFO_DIR
