@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-# setup_hostvfs.sh [MTU] [local/remost/both]
+# setup_vf_mtu.sh [MTU] [local/remost/both]
 # Sets N VFs on one, two, or both serves.
 
 source ../common_config.sh

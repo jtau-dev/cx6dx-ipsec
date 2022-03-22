@@ -19,7 +19,7 @@ while true; do
 done
 
 
-
+LPCIDEV="18:00.0"
 PCIDEV="0000:$LPCIDEV"
 NUMA=`cat /sys/bus/pci/devices/$PCIDEV/numa_node`
 NUMA_CORES=`lscpu | grep "NUMA node$NUMA" | awk '{print $4}'`
@@ -28,10 +28,11 @@ NUMA_CORES2=`lscpu | grep "NUMA node" | grep -v "NUMA node$NUMA" | awk '{print $
 NUMA_CORES2=${NUMA_CORES2//,/ }
 NC=(${NUMA_CORES[@]} ${NUMA_CORES2[@]} ${NUMA_CORES[@]} ${NUMA_CORES2[@]})
 
-CIF=`ls /sys/bus/pci/devices/$PCIDEV/net`
-CIF=${CIF/\//}
+CIF=(`ls /sys/bus/pci/devices/$PCIDEV/net`)
+CIF=${CIF[0]/\//}
 NETDEVS=(dummy $CIF `ls /sys/bus/pci/devices/$PCIDEV/virtfn*/net`)
-
+echo ${NETDEVS[@]}
+exit
 IRQ=()
 for i in $( seq 1 2 ${#NETDEVS[@]} ); do
     nd=${NETDEVS[$i]}
@@ -43,7 +44,7 @@ for i in $( seq 1 2 ${#NETDEVS[@]} ); do
     if [ $eqq -ne 1 ]; then
       ethtool -X $nd equal 1
     fi
-    irq=`show_irq_affinity.sh $nd | cut -d" " -f1`
+    irq=`./show_irq_affinity.sh $nd | cut -d" " -f1`
     IRQ=(${IRQ[@]} ${irq/\:/})
     NIRQ=${#IRQ[@]}
 done

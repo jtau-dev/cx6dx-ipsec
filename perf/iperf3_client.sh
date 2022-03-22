@@ -68,23 +68,22 @@ done
 #echo "${cores[@]}"
 
 T="
-  RIFN=\`ls /sys/bus/pci/devices/${RPCIDEV}/net/\`; \
-  RIFN=\${RIFN/\/};\
+  RIFN=(\`ls /sys/bus/pci/devices/${RPCIDEV}/net/\`); \
+  RIFN=\${RIFN[0]};\
   if [ -e /sys/bus/pci/devices/${RPCIDEV}/virtfn0 ]; then \
-    ifconfig \${RIFN}_0 2> /dev/null;\
-    if [[ \$? == 0 ]]; then\
+   if [ -e /sys/bus/pci/devices/${RPCIDEV}/net/\${RIFN}_0 ]; then
       VFN=(\`ls /sys/bus/pci/devices/${RPCIDEV}/virtfn*/net/\`);\
-    else \
+   else \
       VFN=(dummy \$RIFN \`ls /sys/bus/pci/devices/${RPCIDEV}/virtfn*/net/\`);\
-    fi; \
-    for i in \$( seq 1 2 \${#VFN[@]} ); do \
+   fi; \
+   for i in \$( seq 1 2 \${#VFN[@]} ); do \
       IP=\`ip addr show \${VFN[\$i]} | grep -E 'inet.*global' | awk '{print \$2}'\`;\
       IP=\${IP//\/24/};\
       echo \$IP;\
-    done;\
+   done;\
   else\
     IPs=(\`ip a s dev \$RIFN | awk '/inet / {sub(/\/24/,\"\",\$2); print \$2}'\`);\
-    echo \${IPs[@]};\
+    echo \$IPs
   fi
 "
 
@@ -95,21 +94,21 @@ T="
 RIPs=(`ssh -x $iSERVER "$T"`)
 #echo "${RIPs[@]}"
 
-LIFN=`ls /sys/bus/pci/devices/${LPCIDEV}/net/`
-LIFN=${LIFN/\/};
+LIFN=(`ls /sys/bus/pci/devices/${LPCIDEV}/net/`)
+LIFN=${LIFN[0]}
+LIFN=${LIFN/\/}
 
 if [ -e /sys/bus/pci/devices/$LPCIDEV/virtfn0 ]; then
-    ifconfig ${LIFN}_0 >& /dev/null
-    if [[ $? == 0 ]]; then
-      VFN=(`ls /sys/bus/pci/devices/${LPCIDEV}/virtfn*/net/`);
-    else
-      VFN=(dummy $LIFN `ls /sys/bus/pci/devices/${LPCIDEV}/virtfn*/net/`);
-    fi
-  for i in $( seq 1 2 ${#VFN[@]} ); do
-    IP=`ip addr show ${VFN[$i]} | grep -E 'inet.*global' | awk '{print $2}'`
-    IP=${IP///24/}
-    BIP=(${BIP[@]} "-B $IP")
-  done
+   if [ -e /sys/bus/pci/devices/$LPCIDEV/net/${LIFN}_0 ]; then
+      VFN=(`ls /sys/bus/pci/devices/${LPCIDEV}/virtfn*/net/`)
+   else
+      VFN=(dummy $LIFN `ls /sys/bus/pci/devices/${LPCIDEV}/virtfn*/net/`)
+   fi
+   for i in $( seq 1 2 ${#VFN[@]} ); do
+     IP=`ip addr show ${VFN[$i]} | grep -E 'inet.*global' | awk '{print $2}'`
+     IP=${IP///24/}
+     BIP=(${BIP[@]} "-B $IP")
+   done
 else
     BIP=(`ip a s dev $LIFN | awk '/inet / {sub(/\/24/,"",$2); print "-B " $2}'`)
 fi
@@ -117,6 +116,7 @@ fi
 #echo "${BIP[@]}"
 #[[ $NoT -gt 16 ]] && NoTO=16 || NoTO=$NoT
 [[ "$OF_MODE" == "full" ]] && MSZ="-M 1350"
+#echo "CO=$CO"
 
 for i in $(seq $skip $(( NoT - 1 + skip )) )
 do

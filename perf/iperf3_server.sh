@@ -71,13 +71,16 @@ for c in ${NC[@]}; do
 done
 #echo "${cores[@]}"
 
-RIFN=`ls /sys/bus/pci/devices/${RPCIDEV}/net`
-RIFN=${RIFN///};
+RIFN=(`ls /sys/bus/pci/devices/${RPCIDEV}/net`)
+RIFN=${RIFN[0]///};
 #echo $RIFN
 
-if [ -e /sys/bus/pci/devices/${RPCIDEV}/virtfn0 ]; then
-    VFN=(dummy $RIFN `ls /sys/bus/pci/devices/${RPCIDEV}/virtfn*/net/`)
-#    echo "VFN=${VFN[@]}"
+if [ -e /sys/bus/pci/devices/${RPCIDEV}/virtfn0 ]; then \
+   if [ -e /sys/bus/pci/devices/${RPCIDEV}/net/${RIFN}_0 ]; then
+      VFN=(`ls /sys/bus/pci/devices/${RPCIDEV}/virtfn*/net/`);\
+   else \
+      VFN=(dummy $RIFN `ls /sys/bus/pci/devices/${RPCIDEV}/virtfn*/net/`);\
+   fi; \
     for i in $( seq 1 2 ${#VFN[@]} ); do 
       IP=`ip addr show ${VFN[$i]} | grep -E 'inet.*global' | awk '{print $2}'`
       IP=${IP///24/}
@@ -88,6 +91,7 @@ else
 fi
 
 #echo ${IPs[@]}
+#exit
 
 for i in $( seq $skip $(( NoT - 1 + skip)) )
 do

@@ -18,7 +18,7 @@ function setdevlink() {
   ssh -x $HOST <<EOF
   set -x
   if [ -e /sys/bus/pci/devices/${HPCIDEV}/sriov_numvfs ]; then
-      N=`cat /sys/bus/pci/devices/${HPCIDEV}/sriov_numvfs`
+      N=\`cat /sys/bus/pci/devices/${HPCIDEV}/sriov_numvfs\`
      if [[ \$N -ne 0 ]]; then
        echo 0 > /sys/bus/pci/devices/${HPCIDEV}/sriov_numvfs
      fi
@@ -255,7 +255,7 @@ function set_host_vf_ips() {
     set -x
     CIF=\`ls /sys/bus/pci/devices/${PCIDEV}/net\`
     CIF=\${CIF/\//}
-    IPB=(`echo $VF0IP | sed "s/\./ /g"`)
+    IPB=(\`echo $VF0IP | sed "s/\./ /g"\`)
     IP3B=\${IPB[2]}
     ip l s \${CIF}_0 >& /dev/null
 # With host-aware IPSec, both PF and representor would show.
@@ -290,7 +290,7 @@ function set_host_ips() {
 #    CIF=\`ls /sys/class/infiniband/$HMLXID/device/net\`
     CIF=\`ls /sys/bus/pci/devices/${PCIDEV}/net\`
     CIF=\${CIF/\//}
-    IPB=(`echo $VF0IP | sed "s/\./ /g"`)
+    IPB=(\`echo $VF0IP | sed "s/\./ /g"\`)
     IP3B=\${IPB[2]}
     #set -x
     for i in \$( seq 0 $VFS ); do
@@ -334,7 +334,7 @@ function setgwip() {
   IPR="${IPB[0]}.${IPB[1]}.0.0/16"
   ssh -x $HOST /bin/bash <<EOF
     #set -x
-    netdev=`ls /sys/bus/pci/devices/${PCIDEV}/net/`
+    netdev=\`ls /sys/bus/pci/devices/${PCIDEV}/net/\`
     cmd="ip addr add ${GWIP}/24 dev \$netdev"
     echo "\$cmd"
     eval "\$cmd"
