@@ -73,6 +73,9 @@ T="
   if [ -e /sys/bus/pci/devices/${RPCIDEV}/virtfn0 ]; then \
    if [ -e /sys/bus/pci/devices/${RPCIDEV}/net/\${RIFN}_0 ]; then
       VFN=(\`ls /sys/bus/pci/devices/${RPCIDEV}/virtfn*/net/\`);\
+      if [[ \${#VFN[@]} == 1 ]]; then \
+         VFN=( dummy \${VFN[@]} ); \
+      fi \
    else \
       VFN=(dummy \$RIFN \`ls /sys/bus/pci/devices/${RPCIDEV}/virtfn*/net/\`);\
    fi; \
@@ -83,7 +86,7 @@ T="
    done;\
   else\
     IPs=(\`ip a s dev \$RIFN | awk '/inet / {sub(/\/24/,\"\",\$2); print \$2}'\`);\
-    echo \$IPs
+    echo \${IPs[@]}
   fi
 "
 
@@ -104,16 +107,32 @@ if [ -e /sys/bus/pci/devices/$LPCIDEV/virtfn0 ]; then
    else
       VFN=(dummy $LIFN `ls /sys/bus/pci/devices/${LPCIDEV}/virtfn*/net/`)
    fi
-   for i in $( seq 1 2 ${#VFN[@]} ); do
-     IP=`ip addr show ${VFN[$i]} | grep -E 'inet.*global' | awk '{print $2}'`
-     IP=${IP///24/}
-     BIP=(${BIP[@]} "-B $IP")
-   done
 else
-    BIP=(`ip a s dev $LIFN | awk '/inet / {sub(/\/24/,"",$2); print "-B " $2}'`)
+   VFN=($LIFN)
 fi
 
+#if [[ ${#VFN[@]} == 1 ]]; then
+#    BIP=(`ip a s dev ${VFN[0]} | awk '/inet / {sub(/\/24/,"",$2); print "-B " $2}'`)
+#else
+#   for i in $( seq 1 2 ${#VFN[@]} ); do
+#     IP=`ip addr show ${VFN[$i]} | grep -E 'inet.*global' | awk '{print $2}'`
+#     IP=${IP///24/}
+#     BIP=(${BIP[@]} "-B $IP")
+#   done
+#fi
+T=(${VFN[@]:1:${#VFN[@]}} ${VFN[0]})
+#echo "T=${T[@]}"
+#echo "VFN=${VFN[@]}"
+#echo "BIP=${BIP[@]}"
+   for i in $( seq 0 2 ${#VFN[@]} ); do
+#     echo $i
+     IP=`ip addr show ${VFN[$i]} | awk '/inet / {print $2}'`
+     IP=${IP///24/}
+     BIP=(${BIP[@]} $IP)
+   done
+
 #echo "${BIP[@]}"
+
 #[[ $NoT -gt 16 ]] && NoTO=16 || NoTO=$NoT
 [[ "$OF_MODE" == "full" ]] && MSZ="-M 1350"
 #echo "CO=$CO"
@@ -122,7 +141,7 @@ for i in $(seq $skip $(( NoT - 1 + skip )) )
 do
     j=$(( i - skip ))
     corei=$(( i + CO - skip ))
-    cmd="taskset -c ${cores[$corei]} iperf3 $MSZ -c ${RIPs[$i]} -P1 --logfile ${FIFO_DIR}fifo${j} ${BIP[@]:$((2*i)):2} -t $RUNTIME $DIR &"
+    cmd="taskset -c ${cores[$corei]} iperf3 $MSZ -c ${RIPs[$i]} -P1 --logfile ${FIFO_DIR}fifo${j} -B ${BIP[$i]} -t $RUNTIME $DIR &"
     echo $cmd
     eval "$cmd"
 done    

@@ -253,17 +253,21 @@ function set_host_vf_ips() {
   
   ssh -x $HOST /bin/bash <<EOF
     set -x
-    CIF=\`ls /sys/bus/pci/devices/${PCIDEV}/net\`
-    CIF=\${CIF/\//}
+    CIF=(\`ls /sys/bus/pci/devices/${PCIDEV}/net\`)
+    CIF=\${CIF[0]/\//}
     IPB=(\`echo $VF0IP | sed "s/\./ /g"\`)
     IP3B=\${IPB[2]}
-    ip l s \${CIF}_0 >& /dev/null
-# With host-aware IPSec, both PF and representor would show.
-    if [[ \$? == 1 ]]; then
+    ip l show dev \${CIF}_0 >& /dev/null
+
+    if [[ \$? != 0 ]]; then
+# With crypto-offload IPSec, both PF and representor would show.
       netdevs=(dummy \$CIF \`ls /sys/bus/pci/devices/${PCIDEV}/virtfn*/net/\`)
     else
-# Transparent IPSec
+# Full offload IPSec
       netdevs=(\`ls /sys/bus/pci/devices/${PCIDEV}/virtfn*/net/\`)
+      if [[ \${#netdevs[@]} == 1 ]]; then
+        netdevs=(dummy \${netdevs[@]})
+      fi
     fi
     for i in \$( seq 1 2 \${#netdevs[@]} ); do
       ND=\${netdevs[\$i]}
@@ -286,19 +290,32 @@ function set_host_ips() {
   VF0IP=$3
 
   ssh -x $HOST /bin/bash <<EOF
-    #set -x
-#    CIF=\`ls /sys/class/infiniband/$HMLXID/device/net\`
-    CIF=\`ls /sys/bus/pci/devices/${PCIDEV}/net\`
-    CIF=\${CIF/\//}
+    set -x
+    CIF=(\`ls /sys/bus/pci/devices/${PCIDEV}/net\`)
+    if [[ \${#CIF[@]} == 1 ]]; then
+      CIF=\${CIF[0]/\//}
+      NIPs=$VFS
+    elif [[ $VFS == 1 ]]; then
+      CIF=\`ls /sys/bus/pci/devices/${PCIDEV}/virtfn0/net\`
+      NIPs=${NIP:-1}
+      echo "NIPs=\$NIPs $NIP"
+    else
+      echo "Illegal configuration ..."
+      exit
+    fi
     IPB=(\`echo $VF0IP | sed "s/\./ /g"\`)
-    IP3B=\${IPB[2]}
+    IP2B=\${IPB[2]}
+    IP1B=\${IPB[1]}
     #set -x
-    for i in \$( seq 0 $VFS ); do
-      cmd="ip a a \${IPB[0]}.\${IPB[1]}.\$IP3B.\${IPB[3]}/24 dev \$CIF"
-      IP3B=\$(( \$IP3B + 1 ))
+    for i in \$( seq 0 \$NIPs ); do
+      cmd="ip a a \${IPB[0]}.\$IP1B.\$IP2B.\${IPB[3]}/24 dev \$CIF"
+      IP2B=\$(( \$IP2B + 1 ))
+      if [[ \$IP2B == 255 ]]; then
+        IP2B=0
+        IP1B=\$(( \$IP1B + 1 ))
+      fi
       echo \$cmd
       eval "\$cmd"
-      #sleep 5
     done
     ip link set dev \$CIF up
 EOF
@@ -327,19 +344,23 @@ EOF
 function setgwip() {
   PCIDEV="0000:$1"
   HOST=$2
-  GWIP=$3
-  VF0IP=$4
+  LGWIP=$3
+  RGWIP=$4
+  VF0IP=$5
 
   IPB=(`echo $VF0IP | sed "s/\./ /g"`)  
   IPR="${IPB[0]}.${IPB[1]}.0.0/16"
   ssh -x $HOST /bin/bash <<EOF
     #set -x
     netdev=\`ls /sys/bus/pci/devices/${PCIDEV}/net/\`
-    cmd="ip addr add ${GWIP}/24 dev \$netdev"
+    cmd="ip addr flush dev \$netdev"
+    echo "\$cmd"
+    eval "\$cmd"
+    cmd="ip addr add ${LGWIP}/24 dev \$netdev"
     echo "\$cmd"
     eval "\$cmd"
     # Add host route
-    cmd="ip r a $IPR via ${GWIP}"
+    cmd="ip r a $IPR via ${RGWIP}"
     echo "\$cmd"
     eval "\$cmd"
 EOF

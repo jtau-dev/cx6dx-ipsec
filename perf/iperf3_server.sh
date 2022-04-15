@@ -61,12 +61,15 @@ NUMA_CORES2=`lscpu | grep -E 'NUMA node[0-1]' | grep -v "NUMA node$NUMA" | awk '
 NUMA_CORES2=${NUMA_CORES2//,/ }
 
 NC=(${NUMA_CORES[@]} ${NUMA_CORES2[@]} ${NUMA_CORES[@]} ${NUMA_CORES2[@]})
+#echo "${NC[@]}"
 
-
+cores=${NC[@]}
 for c in ${NC[@]}; do
-  if [[ $c =~ [-] ]]; then
+  if [[ $c =~ [\-] ]]; then
     C=${c/-/ }
     cores=( ${cores[@]} $(seq $C) )
+  else
+    cores=(${NC[@]})
   fi
 done
 #echo "${cores[@]}"
@@ -74,15 +77,19 @@ done
 RIFN=(`ls /sys/bus/pci/devices/${RPCIDEV}/net`)
 RIFN=${RIFN[0]///};
 #echo $RIFN
+#set -x
 
-if [ -e /sys/bus/pci/devices/${RPCIDEV}/virtfn0 ]; then \
+if [ -e /sys/bus/pci/devices/${RPCIDEV}/virtfn0 ]; then 
    if [ -e /sys/bus/pci/devices/${RPCIDEV}/net/${RIFN}_0 ]; then
-      VFN=(`ls /sys/bus/pci/devices/${RPCIDEV}/virtfn*/net/`);\
-   else \
-      VFN=(dummy $RIFN `ls /sys/bus/pci/devices/${RPCIDEV}/virtfn*/net/`);\
-   fi; \
+      VFN=(`ls /sys/bus/pci/devices/${RPCIDEV}/virtfn*/net/`);
+      if [[ ${#VFN[@]} == 1 ]]; then 
+         VFN=( dummy ${VFN[@]} );
+      fi
+   else 
+      VFN=(dummy $RIFN `ls /sys/bus/pci/devices/${RPCIDEV}/virtfn*/net/`);
+   fi; 
     for i in $( seq 1 2 ${#VFN[@]} ); do 
-      IP=`ip addr show ${VFN[$i]} | grep -E 'inet.*global' | awk '{print $2}'`
+      IP=`ip addr show dev ${VFN[$i]} | awk '/inet / {sub(/\/24/,"",$2); print $2}'`
       IP=${IP///24/}
       IPs=(${IPs[@]} $IP)
     done
@@ -96,7 +103,7 @@ fi
 for i in $( seq $skip $(( NoT - 1 + skip)) )
 do
   if [ "$i" -lt "${#IPs[@]}" ]; then
-    coren=$(( cores[i + CO - skip ] ))
+    coren=$(( cores[ i + CO - skip ] ))
     cmd="taskset -c $coren iperf3 -s -B ${IPs[$i]}&"
     echo $cmd
     eval $cmd
