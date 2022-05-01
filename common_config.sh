@@ -341,6 +341,110 @@ function set_host_vf_mtu() {
 EOF
 }
 
+function set_host_vf_ns() {
+# set_host_vf_ips [HOST] [PCIDEV] [VF0IP] [offload]
+    
+  HOST=$1
+  PCIDEV="0000:$2"
+  VF0IP=$3
+  ETHOFL=${4:-"on"}
+
+  ssh -x $HOST /bin/bash <<EOF
+#    set -x
+    devlink dev eswitch show pci/${PCIDEV} | grep switchdev > /dev/null
+    if [[ \$? == 1 ]]; then
+      echo "Configure ${PCIDEV} to switchdev mode first."
+      echo "For example, run setup_devlink.sh"
+      exit
+    fi
+    if [[ ! -e /sys/bus/pci/devices/${PCIDEV}/virtfn0 ]]; then
+       echo "No VFs yet.  Run setup_hostvfs.sh first."
+       exit
+    fi
+      netdevs=(\`ls /sys/bus/pci/devices/${PCIDEV}/virtfn*/net\`) 
+#      echo "\${netdevs[@]}"
+
+# Add netns
+    for i in \$( seq 0 $(( VFS - 1)) ); do
+      ip netns | grep netns\$i >& /dev/null
+      if [[ \$? == 1 ]]; then
+        cmd="ip netns add netns\$i"
+        echo \$cmd
+        eval "\$cmd"
+      else
+        echo "nets\$i exists."
+      fi
+    done
+
+    for (( i=0 ; \$i<\${#netdevs[@]} ; i++ )); do
+      ce=\${netdevs[\$i]};
+#      echo "ce \$ce"
+      ne=\${netdevs[\$(( i + 1 ))]};
+#      echo "ne \$ne"
+
+      echo \$ne | grep virtfn > /dev/null
+      if [[ \$? == 0 || x"\$ne" == "x" ]]; then
+         continue
+      fi
+      ns=\${ce:40:-5}
+      ip l | grep \$ne >& /dev/null
+      cmd="ip l s \$ne netns netns\$ns"
+      echo "\$cmd"
+      eval "\$cmd"
+      i=\$(( i + 1 ))
+    done
+EOF
+}
+
+function set_host_vf_ns_ips() {
+# set_host_vf_ips [HOST] [PCIDEV] [VF0IP] [offload]
+    
+  HOST=$1
+  PCIDEV="0000:$2"
+  VF0IP=$3
+  ETHOFL=${4:-"on"}
+
+  if [[ "$VF0IP" == "$LVFIP0" ]]; then
+      RIP=$RVFIP0
+  else
+      RIP=$LVFIP0
+  fi
+  IPB=(${VF0IP//\./\ })
+
+  RIPA=(${RIP//\./\ })
+  IPR="${RIPA[0]}.${RIPA[1]}.0.0/16"
+  ssh -x $HOST /bin/bash <<EOF
+#    set -x
+    NS=(\`/usr/sbin/ip netns | cut -d" " -f1 | sort\`)
+#    echo \${NS[@]}
+#    IPB=(\`echo $VF0IP | sed "s/\./ /g"\`)
+
+    IP2B=${IPB[2]}
+    for ns in \${NS[@]}; do
+      LIP="${IPB[0]}.${IPB[1]}.\$IP2B.$REPNODE"
+ #     echo "ns \$ns"
+      dev=\`ip netns exec \$ns ip a | grep -E '^[0-9]+:' | grep -v 'lo:' | cut -d' ' -f2\`
+      dev=\${dev:0:-1}
+#      echo "IP2B=\$IP2B"
+      cmd="ip netns exec \$ns ip a a ${IPB[0]}.${IPB[1]}.\$IP2B.${IPB[3]}/24 dev \$dev"
+      cmd2="ip netns exec \$ns ethtool -K \$dev hw-tc-offload $ETHOFL"
+      cmd3="ip netns exec \$ns ip l s dev \$dev up"
+      cmd4="ip netns exec \$ns ip r a $IPR via \$LIP dev \$dev"
+      ((IP2B++))
+      echo \$cmd
+      eval "\$cmd"
+      echo \$cmd2
+      eval "\$cmd2"
+      echo "\$cmd3"
+      eval "\$cmd3"
+      echo "\$cmd4"
+      eval "\$cmd4"
+      echo ""
+    done
+EOF
+}
+
+
 function setgwip() {
   PCIDEV="0000:$1"
   HOST=$2
@@ -348,11 +452,27 @@ function setgwip() {
   RGWIP=$4
   VF0IP=$5
 
-  IPB=(`echo $VF0IP | sed "s/\./ /g"`)  
+  if [[ "$LGWIP" == "$GW_LIP" ]]; then
+    RIP=$LVFIP0
+  else
+    RIP=$RVFIP0
+  fi
+	 
+#  IPB=(`echo $VF0IP | sed "s/\./ /g"`)  
+  IPB=(${VF0IP//\./\ })
   IPR="${IPB[0]}.${IPB[1]}.0.0/16"
+  RIPA=(${RIP//\./\ })
+  LIP="${RIPA[0]}.${RIPA[1]}.${RIPA[2]}.$REPNODE/24"
+
   ssh -x $HOST /bin/bash <<EOF
-    #set -x
-    netdev=\`ls /sys/bus/pci/devices/${PCIDEV}/net/\`
+#    set -x
+    devlink dev eswitch show pci/${PCIDEV} | grep switchdev > /dev/null
+    if [[ \$? == 1 ]]; then
+      echo "Run setup_devlink.sh first."
+      exit
+    fi
+    netdevs=(\`ls /sys/bus/pci/devices/${PCIDEV}/net/\`)
+    netdev=\${netdevs[0]}
     cmd="ip addr flush dev \$netdev"
     echo "\$cmd"
     eval "\$cmd"
@@ -363,5 +483,19 @@ function setgwip() {
     cmd="ip r a $IPR via ${RGWIP}"
     echo "\$cmd"
     eval "\$cmd"
+    # Add representor routes
+   LIP=$LIP
+   B2=${RIPA[2]}
+   for (( i = 1; \$i < \${#netdevs[@]};i++ )); do
+     netdev=\${netdevs[\$i]}
+     cmd="ip a a \$LIP dev \$netdev"
+     cmd2="ip l s dev \$netdev up"
+     echo "\$cmd"
+     eval "\$cmd"
+     echo "\$cmd2"
+     eval "\$cmd2"
+      ((B2++))
+     LIP="${RIPA[0]}.${RIPA[1]}.\$B2.$REPNODE/24"
+   done
 EOF
 }
